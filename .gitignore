@@ -1,0 +1,15 @@
+마우스/
+계산작업/
+model/
+Compiler/
+2809moniter/
+SI/
+.vs/
+
+*.sln
+*.vcxproj
+
+*.hex
+*.map
+*.out
+*.CF3
