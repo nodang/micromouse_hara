@@ -13,3 +13,5 @@ SI/
 *.map
 *.out
 *.CF3
+*.asm
+*.obj
