@@ -59,6 +59,13 @@ __VARIABLE_EXT__ Flags s_flags;
 #define LFS		s_sen[6]	// left front side sensor
 #define LBS		s_sen[7]	// left back side sensor
 
+#define SCIA_ISR_ON		do {										\
+							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
+						}while(0)
+#define SCIA_ISR_OFF 	do {										\
+							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
+						}while(0)
+
 typedef volatile struct
 {
 	Uint16	u16_value;
@@ -81,26 +88,8 @@ typedef volatile struct
 
 __VARIABLE_EXT__ SensorVal s_sen[8];
 
-__VARIABLE_EXT__ SensorVal *p_r_back_side_sen;
-__VARIABLE_EXT__ SensorVal *p_r_front_side_sen;
-__VARIABLE_EXT__ SensorVal *p_r_45_sen;
-__VARIABLE_EXT__ SensorVal *p_r_front_sen;
-__VARIABLE_EXT__ SensorVal *p_l_front_sen;
-__VARIABLE_EXT__ SensorVal *p_l_45_sen;
-__VARIABLE_EXT__ SensorVal *p_l_front_side_sen;
-__VARIABLE_EXT__ SensorVal *p_l_back_side_sen;
-
-__VARIABLE_EXT__ volatile Uint16 g_u16_sensor_num;
-
-#define SCIA_ISR_ON		do {										\
-							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
-						}while(0)
-#define SCIA_ISR_OFF 	do {										\
-							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
-						}while(0)
-
-
-__VARIABLE_EXT__ volatile Uint16 g_u16_sci_on;
+__VARIABLE_EXT__ volatile Uint16	g_u16_sensor_num,
+									g_u16_sci_on;
 
 //==========================================================================//
 //                                 MOTOR                                    //
@@ -118,12 +107,14 @@ typedef volatile struct
 	Uint16	u16_qep_sample,
 			u16_tick,
 			dong;
+	
 	int16	i16_qep_val,
 			stop_flag;
 
 	Uint32	i32_accel;
 
 	_iq27	q27_tick_distance;
+	
 	_iq17	q17_distance_sum,
 			q17_kp,
 			q17_ki,
@@ -145,8 +136,16 @@ typedef volatile struct
 	_iq26	q26_pos_adjrate;
 }MotorVariable;
 
-__VARIABLE_EXT__	MotorVariable	s_right_motor;
-__VARIABLE_EXT__	MotorVariable	s_left_motor;
+__VARIABLE_EXT__ MotorVariable	s_left_motor, s_right_motor;
+
+typedef volatile struct
+{
+	_iq17	q17_linear,
+			q17_angular;
+}CommandVelocity;
+
+__VARIABLE_EXT__ CommandVelocity s_cmd_vel;
+
 
 
 

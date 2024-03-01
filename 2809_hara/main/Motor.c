@@ -20,12 +20,12 @@
 #include "Motor.h"
 
 #define MAX_I_TERM		_IQ17(5.0)
-#define MIN_I_TERM		_IQ17(-5.0)
+#define MIN_I_TERM		-MAX_I_TERM //_IQ17(-5.0)
 
 #define PWM_CONVERT		_IQ30(0.22222222)// pwm 50kHz
 
 #define MAX_PID_OUT		_IQ17(9000)//9000
-#define MIN_PID_OUT		_IQ17(-9000)//9000
+#define MIN_PID_OUT		-MAX_PID_OUT //_IQ17(-9000)//9000
 
 #define TIME_TICK 		_IQ30(0.0005)
 
@@ -34,6 +34,26 @@
 #define PULSE_TO_VEL	_IQ26(18.407769454627695)	
 // 바퀴지름 *PHI[75.398223686155037723103441198708]/(512*4)/기어비(4.)/0.0005
 
+#define BLOCK_WIDTH			_IQ17(180.0)
+#define HALF_BLOCK_WIDTH	_IQ17(90.0)
+
+#define ROBOT_WIDTH_DIV2	_IQ17(100.0)
+
+#define CALC_DIST(V,W,R)	_IQ17mpy(_IQ17mpy(V, R), W)
+
+enum RunType {
+	TR45 = 0,
+	TR90,
+	TR135,
+	TR180,
+
+	TL45,
+	TL90,
+	TL135,
+	TL180,
+
+	STR
+};
 
 static void _init_motor_structure(MotorVariable *p_motor)
 {
@@ -51,6 +71,8 @@ void init_motor(void)
 {
 	_init_motor_structure(&s_right_motor);
 	_init_motor_structure(&s_left_motor);
+
+	memset((void *)&s_cmd_vel, 0x00, sizeof(CommandVelocity));
 }
 
 interrupt void motor_timer2_ISR(void)
@@ -66,12 +88,12 @@ interrupt void motor_timer2_ISR(void)
 #if 1
 	//받은 값을 int16으로 변환한다.
 	if(s_right_motor.u16_qep_sample > 1023)
-		s_right_motor.i16_qep_val = (int16)(s_right_motor.u16_qep_sample - 2048);
+		s_right_motor.i16_qep_val = (int16)s_right_motor.u16_qep_sample - 2048;
 	else 
 		s_right_motor.i16_qep_val = (int16)s_right_motor.u16_qep_sample;
 
 	if(s_left_motor.u16_qep_sample > 1023)
-		s_left_motor.i16_qep_val = (int16)(s_left_motor.u16_qep_sample - 2048);
+		s_left_motor.i16_qep_val = (int16)s_left_motor.u16_qep_sample - 2048;
 	else
 		s_left_motor.i16_qep_val = (int16)s_left_motor.u16_qep_sample;
 
@@ -256,4 +278,100 @@ interrupt void motor_timer2_ISR(void)
 	StartCpuTimer0();// sensor int start -- sensor shoot
 }
 
+// motor_vel = cmd_vel.linear_vel - cmd_vel.angular_vel * robot_width/2 
+static inline void _inline_move_to_func(CommandVelocity *p_cmd_vel, _iq17 *p_q17_temp, Uint16 run_type)
+{
+	// run type : 0(tr45), 1(tr90), 2(tr135), 3(tr180), 4(tl45), 5(tl90), 6(tl135), 7(tl180), 8(str)
+	if(run_type == STR)
+	{
+		p_cmd_vel->q17_angular = (*p_q17_temp) = _IQ17(0.0);
+
+		s_left_motor.q17_user_distance = s_right_motor.q17_user_distance = BLOCK_WIDTH;
+	}
+	else
+	{
+		// if run type is left, angular velocity is nagative number.
+		if(run_type < TL45)	// right turn
+		{
+			p_cmd_vel->q17_angular = _IQ17div(p_cmd_vel->q17_linear, HALF_BLOCK_WIDTH);
+			(*p_q17_temp) = _IQ17mpy(p_cmd_vel->q17_angular, ROBOT_WIDTH_DIV2);
+
+			// th * block_width_half = user_dist_about_robot_mid
+			// user_dist_about_robot_mid / 
+			if(run_type < TR135)
+			{
+				if(run_type == TR45)
+				{
+					s_left_motor.q17_user_distance;
+					s_right_motor.q17_user_distance;
+				}
+				else	// run type == tr90
+				{
+				}
+			}
+			else
+			{
+				if(run_type == TR135)
+				{
+				}
+				else	// run type == ty 180
+				{
+				}
+			}
+		}
+		else	// left turn
+		{
+			p_cmd_vel->q17_angular = -_IQ17div(p_cmd_vel->q17_linear, HALF_BLOCK_WIDTH);
+			(*p_q17_temp) = _IQ17mpy(p_cmd_vel->q17_angular, ROBOT_WIDTH_DIV2);
+		}
+	}
+
+	s_left_motor.q17_distance_sum = s_right_motor.q17_distance_sum = _IQ17(0.0);
+}
+
+void move_to_stop(Uint16 run_type)
+{
+	CommandVelocity cmd_vel;
+	_iq17 q17_temp;
+
+	StopCpuTimer2();
+	
+	cmd_vel.q17_linear	= _IQ17(0.0);
+
+	_inline_move_to_func(&cmd_vel, &q17_temp, run_type);
+
+	s_right_motor.q17_decel_velocity	= s_right_motor.q17_user_velocity	= cmd_vel.q17_linear + q17_temp;
+	s_left_motor.q17_decel_velocity		= s_left_motor.q17_user_velocity	= cmd_vel.q17_linear - q17_temp;
+
+	StartCpuTimer2();
+
+}
+
+void move_to_move(_iq17 tar_vel, Uint16 run_type, Uint16 restore)
+{
+	CommandVelocity cmd_vel;
+	_iq17 q17_temp;
+
+	StopCpuTimer2();
+	
+	cmd_vel.q17_linear	= tar_vel;
+
+	_inline_move_to_func(&cmd_vel, &q17_temp, run_type);
+
+	if(restore)
+	{
+		s_right_motor.q17_decel_velocity	= s_right_motor.q17_user_velocity;
+		s_left_motor.q17_decel_velocity		= s_left_motor.q17_user_velocity;
+
+		s_right_motor.q17_user_velocity		= cmd_vel.q17_linear + q17_temp;
+		s_left_motor.q17_user_velocity		= cmd_vel.q17_linear - q17_temp;
+	}
+	else
+	{
+		s_right_motor.q17_decel_velocity	= s_right_motor.q17_user_velocity	= cmd_vel.q17_linear + q17_temp;
+		s_left_motor.q17_decel_velocity		= s_left_motor.q17_user_velocity	= cmd_vel.q17_linear - q17_temp;
+	}
+
+	StartCpuTimer2();
+}
 

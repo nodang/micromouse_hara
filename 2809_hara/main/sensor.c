@@ -20,21 +20,21 @@
 
 
 //LOW PASS FILTER 필터 상수 및 계산 값...
-#define 	M_PI				3.1415926536 
+#define M_PI				3.1415926536 
 
-#define 	SENSOR_F_CUT			20//(20Hz)
-#define		SENSOR_F_SAMPLE			2000//(2KHz)
-#define		SENSOR_W_CUT			tan(M_PI * SENSOR_F_CUT / SENSOR_F_SAMPLE)
+#define SENSOR_F_CUT			20//(20Hz)
+#define	SENSOR_F_SAMPLE			2000//(2KHz)
+#define	SENSOR_W_CUT			tan(M_PI * SENSOR_F_CUT / SENSOR_F_SAMPLE)
 
-#define		SENSOR_Ka	    		_IQ30(-0.9390625058)//(W_CUT -1) / (W_CUT + 1)
-#define		SENSOR_Kb				_IQ30(0.0304687471)// W_CUT / (W_CUT + 1)
+#define	SENSOR_Ka	    		_IQ30(-0.9390625058)//(W_CUT -1) / (W_CUT + 1)
+#define	SENSOR_Kb				_IQ30(0.0304687471)// W_CUT / (W_CUT + 1)
 
-#define 	SENSOR_F_CUT_DIFF		50//(50Hz)
-#define		SENSOR_F_SAMPLE_DIFF	2000//(2KHz)
-#define		SENSOR_W_CUT_DIFF		tan(M_PI * SENSOR_F_CUT_DIFF / SENSOR_F_SAMPLE_DIFF)
+#define SENSOR_F_CUT_DIFF		50//(50Hz)
+#define	SENSOR_F_SAMPLE_DIFF	2000//(2KHz)
+#define	SENSOR_W_CUT_DIFF		tan(M_PI * SENSOR_F_CUT_DIFF / SENSOR_F_SAMPLE_DIFF)
 
-#define		SENSOR_Ka_DIFF	    	_IQ30(-0.8540806855)//(W_CUT -1) / (W_CUT + 1)
-#define		SENSOR_Kb_DIFF			_IQ30(0.0729596573)// W_CUT / (W_CUT + 1)
+#define	SENSOR_Ka_DIFF	    	_IQ30(-0.8540806855)//(W_CUT -1) / (W_CUT + 1)
+#define	SENSOR_Kb_DIFF			_IQ30(0.0729596573)// W_CUT / (W_CUT + 1)
 
 
 #define SEN_NUM			8
@@ -78,15 +78,6 @@ static volatile Uint16 sensor_seq_[SEN_NUM] = {
 
 void init_sensor(void)
 {
-	p_r_back_side_sen	= &s_sen[0];
-	p_r_front_side_sen	= &s_sen[1];
-	p_r_45_sen			= &s_sen[2];
-	p_r_front_sen		= &s_sen[3];
-	p_l_front_sen		= &s_sen[4];
-	p_l_45_sen			= &s_sen[5];
-	p_l_front_side_sen	= &s_sen[6];
-	p_l_back_side_sen	= &s_sen[7];
-	
 	memset((void *)s_sen, 0x00, sizeof(s_sen));
 
 	g_u16_sensor_num = 0;
