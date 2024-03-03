@@ -35,8 +35,7 @@ void System_Init(void)
 
 void Variable_Init(void)
 {
-	memset((void *)&s_flags, 0x00, sizeof(s_flags));
-	s_flags.u16_motor_pwm_flag = OFF;
+	memset((void *)&g_s_flags, 0x00, sizeof(g_s_flags));
 
 	init_motor();
 	init_sensor();
@@ -45,19 +44,21 @@ void Variable_Init(void)
 void main(void)
 {
 	long save_val[15] = { 0, }, cnt = 0, i = 0;
-
+	
 	System_Init();
 	Variable_Init();
-	
-	//LOAD
+
+#if 0
+	menu();
+#else
 	VFDPrintf("BE_READY");
 
 	//STANDBY_OFF;
 	//STANDBY_ON;
 
-	//s_right_motor.stop_flag = ON; 										// 이거 뭐임? 왜 있어야 하는데
-	//s_right_motor.q17_user_velocity = _IQ17(0.0);
-	//s_right_motor.q26_pos_adjrate = _IQ26(1.0);
+	//g_s_right_motor.stop_flag = ON; 										// 이거 뭐임? 왜 있어야 하는데
+	//g_s_right_motor.q17_user_velocity = _IQ17(0.0);
+	//g_s_right_motor.q26_pos_adjrate = _IQ26(1.0);
 
 	StartCpuTimer2();
 	SCIA_ISR_ON;
@@ -67,14 +68,14 @@ void main(void)
 		//TxPrintf("RBS(0): %u\n", RBS.u16_value);
 		if(cnt < 15)
 		{
-			TxPrintf("%ld,%u,%ld\n", cnt, RBS.u16_value, RBS.q17_lpf_out_data >> 17);
+			TxPrintf("%ld,%u,%ld\n", cnt, RBS.value_u16, RBS.lpf_out_data_q17 >> 17);
 
-			if(g_u16_sci_on)
+			if(g_sci_on_u16)
 			{
-				save_val[cnt] =  RBS.q17_lpf_out_data >> 17;
+				save_val[cnt] =  RBS.lpf_out_data_q17 >> 17;
 				if(cnt < 15)
 					cnt++;
-				g_u16_sci_on = OFF;
+				g_sci_on_u16 = OFF;
 				DELAY_US(130000);
 			}
 
@@ -90,12 +91,13 @@ void main(void)
 				TxPrintf("%ld:%ld    ", i, save_val[i]);
 			TxPrintf("\n");
 		}
+#endif
 #if 0
-		TxPrintf("qep: %+5d  pwm: %5d  curr: %+5.2lf  next: %+5.2lf  user: %+5d\n", s_right_motor.i16_qep_val, 
-										(int16)(s_right_motor.q17_pid_out_term >> 17), 
-										_IQtoF(s_right_motor.q17_current_velocity),
-										_IQtoF(s_right_motor.q17_next_velocity),
-										(int16)(s_right_motor.q17_user_velocity >> 17));
+		TxPrintf("qep: %+5d  pwm: %5d  curr: %+5.2lf  next: %+5.2lf  user: %+5d\n", g_s_right_motor.i16_qep_val, 
+										(int16)(g_s_right_motor.q17_pid_out_term >> 17), 
+										_IQtoF(g_s_right_motor.q17_current_velocity),
+										_IQtoF(g_s_right_motor.q17_next_velocity),
+										(int16)(g_s_right_motor.q17_user_velocity >> 17));
 #endif
 #if 0
 		TxPrintf("LBS: %4u    LFS: %4u    L45: %4u    LF: %4u          RF: %4u    R45: %4u    RFS: %4u    RBS: %4u                num : %u\n", 

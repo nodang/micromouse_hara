@@ -16,10 +16,15 @@
 #include "DSP280x_Device.h"     // DSP280x Headerfile Include File
 #include "DSP280x_Examples.h"   // DSP280x Examples Include File
 
-#define SPIA_CS_H	{GpioDataRegs.GPASET.bit.GPIO19 = 1;}
-#define SPIA_CS_L	{GpioDataRegs.GPACLEAR.bit.GPIO19 = 1;}
+#define SPIA_CS_H	do {												\
+						GpioDataRegs.GPASET.bit.GPIO19 = 1;				\
+					}while(0)
+#define SPIA_CS_L	do {												\
+						GpioDataRegs.GPACLEAR.bit.GPIO19 = 1;			\
+					}while(0)
 
 #define SPI_CS_DELAY	Delay(0xc000)
+
 void InitSpi(void)
 {
 	SpiaRegs.SPICCR.all=0x0007;

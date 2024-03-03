@@ -101,6 +101,7 @@ void TxPrintf(char *Form, ... )
     SCIx_TxString(Buff);
 }
 
+/*
 interrupt void scia_ISR()
 {
 	unsigned char scia_buf;
@@ -109,7 +110,15 @@ interrupt void scia_ISR()
 
 	scia_buf = SCIx_RxChar();
 
-	g_u16_sci_on = ON;
+	g_sci_on_u16 = ON;
+}
+*/
+
+interrupt void scia_ISR()
+{
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP9;
+
+	g_sci_on_u16 = ON;
 }
 
 //===========================================================================

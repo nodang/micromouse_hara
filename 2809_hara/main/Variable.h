@@ -39,25 +39,27 @@
 
 #define BUZZ	(GpioDataRegs.GPBDAT.bit.GPIO33)
 
+#define SW_DELAY	125000
+
 typedef volatile struct
 {
-	Uint16 u16_motor_pwm_flag:1;
+	Uint16 motor_pwm_flag_u16:1;
 }Flags;
 
-__VARIABLE_EXT__ Flags s_flags;
+__VARIABLE_EXT__ Flags g_s_flags;
 
 //==========================================================================//
 //                                 SENSOR                                   //
 //==========================================================================//
 
-#define RBS		s_sen[0]	// right back side sensor
-#define RFS		s_sen[1]	// right front side sensor
-#define R45		s_sen[2]	// right 45 sensor
-#define RF		s_sen[3]	// right front sensor
-#define LF		s_sen[4]	// left front sensor
-#define L45		s_sen[5]	// left 45 sensor
-#define LFS		s_sen[6]	// left front side sensor
-#define LBS		s_sen[7]	// left back side sensor
+#define RBS		g_s_sen[0]	// right back side sensor
+#define RFS		g_s_sen[1]	// right front side sensor
+#define R45		g_s_sen[2]	// right 45 sensor
+#define RF		g_s_sen[3]	// right front sensor
+#define LF		g_s_sen[4]	// left front sensor
+#define L45		g_s_sen[5]	// left 45 sensor
+#define LFS		g_s_sen[6]	// left front side sensor
+#define LBS		g_s_sen[7]	// left back side sensor
 
 #define SCIA_ISR_ON		do {										\
 							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
@@ -68,28 +70,37 @@ __VARIABLE_EXT__ Flags s_flags;
 
 typedef volatile struct
 {
-	Uint16	u16_value;
+	Uint16	value_u16;
 
-	_iq17	q17_position,
-			q17_position_yet,
-			q17_position_diff,
-			q17_high_coefficient,
-			q17_low_coefficient,
-			q17_max_val,
-			q17_min_val,
-			q17_mid_val,
-			q17_lpf_out_data_yet,
-			q17_lpf_out_data,
-			q17_lpf_in_data,
-			q17_lpf_out_data_diff,
-			q17_lpf_in_data_diff,
-			q17_lpf_in_data_diff_yet;
+	_iq17	position_q17,
+			position_yet_q17,
+			position_diff_q17,
+			high_coefficient_q17,
+			low_coefficient_q17,
+			max_val_q17,
+			min_val_q17,
+			mid_val_q17,
+			lpf_out_data_yet_q17,
+			lpf_out_data_q17,
+			lpf_in_data_q17,
+			lpf_out_data_diff_q17,
+			lpf_in_data_diff_q17,
+			lpf_in_data_diff_yet_q17;
 }SensorVal;
 
-__VARIABLE_EXT__ SensorVal s_sen[8];
+__VARIABLE_EXT__ SensorVal g_s_sen[8];
 
-__VARIABLE_EXT__ volatile Uint16	g_u16_sensor_num,
-									g_u16_sci_on;
+__VARIABLE_EXT__ SensorVal* g_p_sen_rbs,
+							g_p_sen_rfs,
+							g_p_sen_r45,
+							g_p_sen_rf,
+							g_p_sen_lf,
+							g_p_sen_l45,
+							g_p_sen_lfs,
+							g_p_sen_lbs;
+
+__VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
+									g_sci_on_u16;
 
 //==========================================================================//
 //                                 MOTOR                                    //
@@ -104,47 +115,47 @@ __VARIABLE_EXT__ volatile Uint16	g_u16_sensor_num,
 
 typedef volatile struct
 {
-	Uint16	u16_qep_sample,
-			u16_tick,
+	Uint16	qep_sample_u16,
+			tick_u16,
 			dong;
 	
-	int16	i16_qep_val,
-			stop_flag;
+	int16	qep_val_i16,
+			stop_flag_i16;
 
-	Uint32	i32_accel;
+	Uint32	accel_u32;
 
-	_iq27	q27_tick_distance;
+	_iq27	tick_distance_q27;
 	
-	_iq17	q17_distance_sum,
-			q17_kp,
-			q17_ki,
-			q17_kd,
-			q17_user_distance,
-			q17_remaining_distance,
-			q17_current_velocity,
-			q17_stop_distance,
-			q17_decel_velocity,
-			q17_next_velocity,
-			q17_user_velocity,
-			q17_err_velocity[4],
-			q17_err_velocity_sum,
-			q17_proportional_term,
-			q17_derivative_term,
-			q17_integral_term,
-			q17_pid_out_term;
+	_iq17	distance_sum_q17,
+			kp_q17,
+			ki_q17,
+			kd_q17,
+			user_distance_q17,
+			remaining_distance_q17,
+			current_velocity_q17,
+			stop_distance_q17,
+			decel_velocity_q17,
+			next_velocity_q17,
+			user_velocity_q17,
+			err_velocity_q17[4],
+			err_velocity_sum_q17,
+			proportional_term_q17,
+			derivative_term_q17,
+			integral_term_q17,
+			pid_out_term_q17;
 	
-	_iq26	q26_pos_adjrate;
+	_iq26	pos_adjrate_q26;
 }MotorVariable;
 
-__VARIABLE_EXT__ MotorVariable	s_left_motor, s_right_motor;
+__VARIABLE_EXT__ MotorVariable	g_s_left_motor, g_s_right_motor;
 
 typedef volatile struct
 {
-	_iq17	q17_linear,
-			q17_angular;
+	_iq17	linear_q17,
+			angular_q17;
 }CommandVelocity;
 
-__VARIABLE_EXT__ CommandVelocity s_cmd_vel;
+__VARIABLE_EXT__ CommandVelocity g_s_cmd_vel;
 
 
 
