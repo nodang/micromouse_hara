@@ -19,17 +19,20 @@
 #include "Main.h"
 #include "Motor.h"
 
+#define ENCODER_RESOLUTION		1024
+#define ENCODER_RESOLUTION_x2	2024
+
 #define MAX_I_TERM		_IQ17(5.0)
 #define MIN_I_TERM		-MAX_I_TERM //_IQ17(-5.0)
-
-#define PWM_CONVERT		_IQ30(0.22222222)// pwm 50kHz
 
 #define MAX_PID_OUT		_IQ17(9000)//9000
 #define MIN_PID_OUT		-MAX_PID_OUT //_IQ17(-9000)//9000
 
+#define PWM_CONVERT		_IQ30(0.22222222)// pwm 2kHz == pid_output_maxmin * pwm_convert
+
 #define TIME_TICK 		_IQ30(0.0005)
 
-#define PULSE_TO_DIS	_IQ30(0.0092038847273138)
+#define PULSE_TO_DIST	_IQ30(0.0092038847273138)
 // 바퀴지름 *PHI[75.398223686155037723103441198708]/(512*4)/기어비(4.)
 #define PULSE_TO_VEL	_IQ26(18.407769454627695)	
 // 바퀴지름 *PHI[75.398223686155037723103441198708]/(512*4)/기어비(4.)/0.0005
@@ -42,29 +45,34 @@
 #define CALC_DIST(V,W,R)	_IQ17mpy(_IQ17mpy(V, R), W)
 
 enum RunType {
-	TR45 = 0,
-	TR90,
-	TR135,
-	TR180,
+	STR = 0x00,
 
-	TL45,
-	TL90,
-	TL135,
-	TL180,
+	TR45 = 0x01,
+	TR90 = 0x02,
+	TR135 = 0x04,
+	TR180 = 0x08,
 
-	STR
+	TL45 = 0x10,
+	TL90 = 0x20,
+	TL135 = 0x40,
+	TL180 = 0x80
 };
 
-static void _init_motor_structure(MotorVariable *p_motor)
+static QEPVariable *_sp_r_qep, *_sp_l_qep;
+static DistanceVariable *_sp_r_dist, *_sp_l_dist;
+static SpeedVariable *_sp_r_speed, *_sp_l_speed;
+static MSCVariable *_sp_r_msc, *_sp_l_msc;
+
+static void _init_motor_structure(MotorVariable *sp_motor)
 {
-	memset((void *)p_motor, 0x00, sizeof(MotorVariable));
+	memset((void *)sp_motor, 0x00, sizeof(MotorVariable));
 
-	p_motor->kp_q17 = _IQ17(4.5);		// 4.5
-	p_motor->ki_q17 = _IQ17(0.00002);	// 0.0002
-	p_motor->kd_q17 = _IQ17(4.5);		// 4.5
+	sp_motor->kp_q17 = _IQ17(4.5);		// 4.5
+	sp_motor->ki_q17 = _IQ17(0.00002);	// 0.0002
+	sp_motor->kd_q17 = _IQ17(4.5);		// 4.5
 
-	p_motor->accel_u32 = (int32)6500;
-	p_motor->user_velocity_q17 = _IQ17(0.0);
+	sp_motor->s_speed.accel_q15 = _IQ15(6500.0);
+	sp_motor->s_speed.target_vel_q17 = _IQ17(0.0);
 }
 
 void init_motor(void)
@@ -72,96 +80,110 @@ void init_motor(void)
 	_init_motor_structure(&g_s_right_motor);
 	_init_motor_structure(&g_s_left_motor);
 
+	 _sp_r_qep = &g_s_right_motor.s_qep;
+	 _sp_l_qep = &g_s_left_motor.s_qep;
+
+	_sp_r_dist = &g_s_right_motor.s_dist;
+	_sp_l_dist = &g_s_left_motor.s_dist;
+
+	_sp_r_speed = &g_s_right_motor.s_speed;
+	_sp_l_speed = &g_s_left_motor.s_speed;
+
+	_sp_r_msc = &g_s_right_motor.s_ctrl;
+	_sp_l_msc = &g_s_left_motor.s_ctrl;
+
 	memset((void *)&g_s_cmd_vel, 0x00, sizeof(CommandVelocity));
 }
 
 interrupt void motor_timer2_ISR(void)
-{	
-	//static int test_cnt = 0;
-			
+{
 	//QEP값을 받는다
-	g_s_right_motor.qep_sample_u16 = (Uint16)(RightQepRegs.QPOSCNT);
-	g_s_left_motor.qep_sample_u16 = (Uint16)(LeftQepRegs.QPOSCNT);
+	// save qep sampling value
+	_sp_r_qep->sample_u16 = (Uint16)(RightQepRegs.QPOSCNT);
+	_sp_l_qep->sample_u16 = (Uint16)(LeftQepRegs.QPOSCNT);
 
-	RightQepRegs.QEPCTL.bit.SWI = 1;//initialize position counter
-	LeftQepRegs.QEPCTL.bit.SWI = 1;//initialize position counter
-#if 1
+	// initialize qep register to save sampling value
+	RightQepRegs.QEPCTL.bit.SWI = 1;
+	LeftQepRegs.QEPCTL.bit.SWI = 1;
+
 	//받은 값을 int16으로 변환한다.
-	if(g_s_right_motor.qep_sample_u16 > 1023)
-		g_s_right_motor.qep_val_i16 = (int16)g_s_right_motor.qep_sample_u16 - 2048;
+	// transform the sample type to int16
+	if(_sp_r_qep->sample_u16 >= ENCODER_RESOLUTION)
+		_sp_r_qep->sample_i16 = (int16)_sp_r_qep->sample_u16 - ENCODER_RESOLUTION_x2;
 	else 
-		g_s_right_motor.qep_val_i16 = (int16)g_s_right_motor.qep_sample_u16;
+		_sp_r_qep->sample_i16 = (int16)_sp_r_qep->sample_u16;
 
-	if(g_s_left_motor.qep_sample_u16 > 1023)
-		g_s_left_motor.qep_val_i16 = (int16)g_s_left_motor.qep_sample_u16 - 2048;
+	if(_sp_l_qep->sample_u16 >= ENCODER_RESOLUTION)
+		_sp_l_qep->sample_i16 = (int16)_sp_l_qep->sample_u16 - ENCODER_RESOLUTION_x2;
 	else
-		g_s_left_motor.qep_val_i16 = (int16)g_s_left_motor.qep_sample_u16;
+		_sp_l_qep->sample_i16 = (int16)_sp_l_qep->sample_u16;
+
+	//받은 값을 IQ21으로 변환한다. -> -1024 <= IQ21 < 1024
+	// transfrom the sample type to IQ21
+	_sp_r_qep->sample_q21 = ((int32)_sp_r_qep->sample_i16) << 21;
+	_sp_l_qep->sample_q21 = ((int32)_sp_l_qep->sample_i16) << 21;
 
 	//한 틱당 거리를 구한다.
-	g_s_right_motor.tick_distance_q27 = _IQ27mpyIQX(((int32)(g_s_right_motor.qep_val_i16) << 21), 21, PULSE_TO_DIS, 30);
-	g_s_left_motor.tick_distance_q27 = _IQ27mpyIQX(((int32)(g_s_left_motor.qep_val_i16) << 21), 21, PULSE_TO_DIS, 30);
+	// calculate a tick distance. multiply the sample by distance per a pulse
+	_sp_r_dist->tick_q27 = _IQ27mpyIQX(_sp_r_qep->sample_q21, 21, PULSE_TO_DIST, 30);
+	_sp_l_dist->tick_q27 = _IQ27mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_DIST, 30);
 
 	//틱당 거리를 합쳐 현재의 거리를 구한다.
-	g_s_right_motor.distance_sum_q17 += (g_s_right_motor.tick_distance_q27 >> 10);
-	g_s_left_motor.distance_sum_q17 += (g_s_left_motor.tick_distance_q27 >> 10);
-#endif
+	// calculate moved distance(from start to current). sum all tick
+	_sp_r_dist->gone_q17 += (_sp_r_dist->tick_q27 >> 10);
+	_sp_l_dist->gone_q17 += (_sp_l_dist->tick_q27 >> 10);
+
 #if 1
 	//사용자가 정해준 거리에 합친 거리를 제거해 남은 거리를 구한다.
-	g_s_right_motor.remaining_distance_q17 = g_s_right_motor.user_distance_q17 - g_s_right_motor.distance_sum_q17;
-	g_s_left_motor.remaining_distance_q17 = g_s_left_motor.user_distance_q17 - g_s_left_motor.distance_sum_q17;
+	// calculate remainging distance(from current to end). minus gone distance by target distance
+	_sp_r_dist->remaining_q17 = _sp_r_dist->target_q17 - _sp_r_dist->gone_q17;
+	_sp_l_dist->remaining_q17 = _sp_l_dist->target_q17 - _sp_l_dist->gone_q17;
 
 	//펄스당 속도와 QEP를 곱해 현재의 속도를 구한다.
-	g_s_right_motor.current_velocity_q17 = _IQ17mpyIQX(((int32)(g_s_right_motor.qep_val_i16) << 21), 21, PULSE_TO_VEL, 26);
-	g_s_left_motor.current_velocity_q17 = _IQ17mpyIQX(((int32)(g_s_left_motor.qep_val_i16) << 21), 21, PULSE_TO_VEL, 26);
+	// calculate current velocity. multiply the sample by velocity per a pulse
+	_sp_r_speed->curr_vel_q17 = _IQ17mpyIQX(_sp_r_qep->sample_q21, 21, PULSE_TO_VEL, 26);
+	_sp_l_speed->curr_vel_q17 = _IQ17mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_VEL, 26);
 	
-#if 0
-	//남은 거리 확인
-	if((_IQ17abs(g_s_right_motor.remaining_distance_q17) <= g_s_right_motor.stop_distance_q17) && !(g_s_right_motor.stop_flag_i16))
+	//남은 거리 확인 후 목표 감속 속도 설정
+	// if remainging distance over the stop point set then set target velocity to deceleration target velocity
+	if(_IQ17abs(_sp_r_dist->remaining_q17) <= _sp_r_dist->stop_point_q17)
 	{
-		g_s_right_motor.user_velocity_q17 = g_s_right_motor.decel_velocity_q17;
-
-		if(g_s_right_motor.decel_velocity_q17 == 0)
-			g_s_right_motor.stop_flag_i16 = 1;
-		else
-			g_s_right_motor.stop_flag_i16 = 2;
+		_sp_r_speed->target_vel_q17 = _sp_r_speed->decel_vel_q17;
+	}
+	if(_IQ17abs(_sp_l_dist->remaining_q17) <= _sp_l_dist->stop_point_q17)
+	{
+		_sp_l_speed->target_vel_q17 = _sp_l_speed->decel_vel_q17;
 	}
 
-	if((_IQ17abs(g_s_left_motor.remaining_distance_q17) <= g_s_left_motor.stop_distance_q17) && !(g_s_left_motor.stop_flag_i16))
+	//가감속
+	// calculate next target velocity. accelation or decelaration
+	if(_sp_r_speed->target_vel_q17 > _sp_r_speed->next_vel_q17)
 	{
-		g_s_left_motor.user_velocity_q17 = g_s_left_motor.decel_velocity_q17;
-
-		if(g_s_left_motor.decel_velocity_q17 == 0)
-			g_s_left_motor.stop_flag_i16 = 1;
-		else
-			g_s_left_motor.stop_flag_i16 = 2;
+		_sp_r_speed->next_vel_q17 += _IQ17mpyIQX(TIME_TICK, 30, _sp_r_speed->accel_q15, 15);
+		
+		if(_sp_r_speed->target_vel_q17 < _sp_r_speed->next_vel_q17)
+			_sp_r_speed->next_vel_q17 = _sp_r_speed->target_vel_q17;
 	}
-#endif
-
-	//가속
-	if(g_s_right_motor.user_velocity_q17 > g_s_right_motor.next_velocity_q17)
+	else if(_sp_r_speed->target_vel_q17 < _sp_r_speed->next_vel_q17)
 	{
-		g_s_right_motor.next_velocity_q17 += _IQ17mpyIQX(TIME_TICK, 30, (g_s_right_motor.accel_u32 << 15), 15);
-		if(g_s_right_motor.user_velocity_q17 < g_s_right_motor.next_velocity_q17)
-			g_s_right_motor.next_velocity_q17 = g_s_right_motor.user_velocity_q17;
+		_sp_r_speed->next_vel_q17 -= _IQ17mpyIQX(TIME_TICK, 30, _sp_r_speed->accel_q15, 15);
+		
+		if(_sp_r_speed->target_vel_q17 > _sp_r_speed->next_vel_q17)
+			_sp_r_speed->next_vel_q17 = _sp_r_speed->target_vel_q17;
 	}
-	else if(g_s_right_motor.user_velocity_q17 < g_s_right_motor.next_velocity_q17)
+	if(_sp_l_speed->target_vel_q17 > _sp_l_speed->next_vel_q17)
 	{
-		g_s_right_motor.next_velocity_q17 -= _IQ17mpyIQX(TIME_TICK, 30, (g_s_right_motor.accel_u32 << 15), 15);
-		if(g_s_right_motor.user_velocity_q17 > g_s_right_motor.next_velocity_q17)
-			g_s_right_motor.next_velocity_q17 = g_s_right_motor.user_velocity_q17;
+		_sp_l_speed->next_vel_q17 += _IQ17mpyIQX(TIME_TICK, 30, _sp_l_speed->accel_q15, 15);
+		
+		if(_sp_l_speed->target_vel_q17 < _sp_l_speed->next_vel_q17)
+			_sp_l_speed->next_vel_q17 = _sp_l_speed->target_vel_q17;
 	}
-
-	if(g_s_left_motor.user_velocity_q17 > g_s_left_motor.next_velocity_q17)
+	else if(_sp_l_speed->target_vel_q17 < _sp_l_speed->next_vel_q17)
 	{
-		g_s_left_motor.next_velocity_q17 += _IQ17mpyIQX(TIME_TICK, 30, (g_s_left_motor.accel_u32 << 15), 15);
-		if(g_s_left_motor.user_velocity_q17 < g_s_left_motor.next_velocity_q17)
-			g_s_left_motor.next_velocity_q17 = g_s_left_motor.user_velocity_q17;
-	}
-	else if(g_s_left_motor.user_velocity_q17 < g_s_left_motor.next_velocity_q17)
-	{
-		g_s_left_motor.next_velocity_q17 -= _IQ17mpyIQX(TIME_TICK, 30, (g_s_left_motor.accel_u32 << 15), 15);
-		if(g_s_left_motor.user_velocity_q17 > g_s_left_motor.next_velocity_q17)
-			g_s_left_motor.next_velocity_q17 = g_s_left_motor.user_velocity_q17;
+		_sp_l_speed->next_vel_q17 -= _IQ17mpyIQX(TIME_TICK, 30, _sp_l_speed->accel_q15, 15);
+		
+		if(_sp_l_speed->target_vel_q17 > _sp_l_speed->next_vel_q17)
+			_sp_l_speed->next_vel_q17 = _sp_l_speed->target_vel_q17;
 	}
 	
 #if 0
@@ -182,87 +204,87 @@ interrupt void motor_timer2_ISR(void)
 	}
 #endif
 
-	//포지션 PID
-
-	//Position_PID();
+	// 직선 보정 및 곡선 보정
+	if(g_s_flags.msc_b)
+	{
+		mouse_stability_control();
+	}
 
 	//모터 PID
-	g_s_right_motor.err_velocity_sum_q17 -= g_s_right_motor.err_velocity_q17[3];
-	g_s_right_motor.err_velocity_q17[3] = g_s_right_motor.err_velocity_q17[2];
-	g_s_right_motor.err_velocity_q17[2] = g_s_right_motor.err_velocity_q17[1];
-	g_s_right_motor.err_velocity_q17[1] = g_s_right_motor.err_velocity_q17[0];
-	g_s_right_motor.err_velocity_q17[0] = _IQ17mpyIQX(g_s_right_motor.next_velocity_q17, 17, g_s_right_motor.pos_adjrate_q26, 26) - g_s_right_motor.current_velocity_q17;
-	g_s_right_motor.err_velocity_sum_q17 += g_s_right_motor.err_velocity_q17[0];
+	// motor PID
+	g_s_right_motor.err_vel_sum_q17 -= g_s_right_motor.err_vel_q17[3];
+	g_s_right_motor.err_vel_q17[3] = g_s_right_motor.err_vel_q17[2];
+	g_s_right_motor.err_vel_q17[2] = g_s_right_motor.err_vel_q17[1];
+	g_s_right_motor.err_vel_q17[1] = g_s_right_motor.err_vel_q17[0];
+	g_s_right_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_r_speed->next_vel_q17, 17, _sp_r_msc->adj_ratio_q17, 17) - _sp_r_speed->curr_vel_q17;
+	g_s_right_motor.err_vel_sum_q17 += g_s_right_motor.err_vel_q17[0];
 
-	g_s_right_motor.proportional_term_q17 = _IQ17mpy(g_s_right_motor.kp_q17, g_s_right_motor.err_velocity_q17[0]);
-	g_s_right_motor.derivative_term_q17 = _IQ17mpy(g_s_right_motor.kd_q17, ((g_s_right_motor.err_velocity_q17[0] - g_s_right_motor.err_velocity_q17[3]) + ((g_s_right_motor.err_velocity_q17[1] - g_s_right_motor.err_velocity_q17[2]) << 1)));
-	g_s_right_motor.integral_term_q17 = _IQ17mpy(g_s_right_motor.ki_q17, g_s_right_motor.err_velocity_sum_q17);
+	g_s_right_motor.proportional_term_q17 = _IQ17mpy(g_s_right_motor.kp_q17, g_s_right_motor.err_vel_q17[0]);
+	g_s_right_motor.derivative_term_q17 = _IQ17mpy(g_s_right_motor.kd_q17, ((g_s_right_motor.err_vel_q17[0] - g_s_right_motor.err_vel_q17[3]) + ((g_s_right_motor.err_vel_q17[1] - g_s_right_motor.err_vel_q17[2]) << 1)));
+	g_s_right_motor.integral_term_q17 = _IQ17mpy(g_s_right_motor.ki_q17, g_s_right_motor.err_vel_sum_q17);
 
-	if(g_s_right_motor.integral_term_q17 > MAX_I_TERM)
-		g_s_right_motor.integral_term_q17 = MAX_I_TERM;
-	else if(g_s_right_motor.integral_term_q17 < MIN_I_TERM)
-		g_s_right_motor.integral_term_q17 = MIN_I_TERM;
+	if(g_s_right_motor.integral_term_q17 > MAX_I_TERM)			g_s_right_motor.integral_term_q17 = MAX_I_TERM;
+	else if(g_s_right_motor.integral_term_q17 < MIN_I_TERM)		g_s_right_motor.integral_term_q17 = MIN_I_TERM;
 
-	g_s_right_motor.pid_out_term_q17 += g_s_right_motor.proportional_term_q17 + g_s_right_motor.derivative_term_q17 + g_s_right_motor.integral_term_q17;
-
-
-	g_s_left_motor.err_velocity_sum_q17 -= g_s_left_motor.err_velocity_q17[3];
-	g_s_left_motor.err_velocity_q17[3] = g_s_left_motor.err_velocity_q17[2];
-	g_s_left_motor.err_velocity_q17[2] = g_s_left_motor.err_velocity_q17[1];
-	g_s_left_motor.err_velocity_q17[1] = g_s_left_motor.err_velocity_q17[0];
-	g_s_left_motor.err_velocity_q17[0] = _IQ17mpyIQX(g_s_left_motor.next_velocity_q17, 17, g_s_left_motor.pos_adjrate_q26, 26) - g_s_left_motor.current_velocity_q17;
-	g_s_left_motor.err_velocity_sum_q17 += g_s_left_motor.err_velocity_q17[0];
-
-	g_s_left_motor.proportional_term_q17 = _IQ17mpy(g_s_left_motor.kp_q17,  g_s_left_motor.err_velocity_q17[0]);
-	g_s_left_motor.derivative_term_q17 = _IQ17mpy(g_s_left_motor.kd_q17, ((g_s_left_motor.err_velocity_q17[0] - g_s_left_motor.err_velocity_q17[3]) + ((g_s_left_motor.err_velocity_q17[1] - g_s_left_motor.err_velocity_q17[2]) << 1)));
-	g_s_left_motor.integral_term_q17 = _IQ17mpy(g_s_left_motor.ki_q17, g_s_left_motor.err_velocity_sum_q17 );
-
-	if(g_s_left_motor.integral_term_q17 > MAX_I_TERM)
-		g_s_left_motor.integral_term_q17 = MAX_I_TERM;
-	else if( g_s_left_motor.integral_term_q17 < MIN_I_TERM)
-		g_s_left_motor.integral_term_q17 = MIN_I_TERM;
-
-	g_s_left_motor.pid_out_term_q17 += g_s_left_motor.proportional_term_q17 + g_s_left_motor.derivative_term_q17 + g_s_left_motor.integral_term_q17;
+	g_s_right_motor.pid_output_q17 += g_s_right_motor.proportional_term_q17 + g_s_right_motor.derivative_term_q17 + g_s_right_motor.integral_term_q17;
 
 
-	if(g_s_flags.motor_pwm_flag_u16)
+	g_s_left_motor.err_vel_sum_q17 -= g_s_left_motor.err_vel_q17[3];
+	g_s_left_motor.err_vel_q17[3] = g_s_left_motor.err_vel_q17[2];
+	g_s_left_motor.err_vel_q17[2] = g_s_left_motor.err_vel_q17[1];
+	g_s_left_motor.err_vel_q17[1] = g_s_left_motor.err_vel_q17[0];
+	g_s_left_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_l_speed->next_vel_q17, 17, _sp_l_msc->adj_ratio_q17, 17) - _sp_l_speed->curr_vel_q17;
+	g_s_left_motor.err_vel_sum_q17 += g_s_left_motor.err_vel_q17[0];
+
+	g_s_left_motor.proportional_term_q17 = _IQ17mpy(g_s_left_motor.kp_q17,  g_s_left_motor.err_vel_q17[0]);
+	g_s_left_motor.derivative_term_q17 = _IQ17mpy(g_s_left_motor.kd_q17, ((g_s_left_motor.err_vel_q17[0] - g_s_left_motor.err_vel_q17[3]) + ((g_s_left_motor.err_vel_q17[1] - g_s_left_motor.err_vel_q17[2]) << 1)));
+	g_s_left_motor.integral_term_q17 = _IQ17mpy(g_s_left_motor.ki_q17, g_s_left_motor.err_vel_sum_q17);
+
+	if(g_s_left_motor.integral_term_q17 > MAX_I_TERM)			g_s_left_motor.integral_term_q17 = MAX_I_TERM;
+	else if( g_s_left_motor.integral_term_q17 < MIN_I_TERM)		g_s_left_motor.integral_term_q17 = MIN_I_TERM;
+
+	g_s_left_motor.pid_output_q17 += g_s_left_motor.proportional_term_q17 + g_s_left_motor.derivative_term_q17 + g_s_left_motor.integral_term_q17;
+
+
+	// 
+	if(g_s_flags.motor_pwm_b)
 	{
-		if(g_s_right_motor.pid_out_term_q17 >= _IQ17(0.0))
+		if(g_s_right_motor.pid_output_q17 >= _IQ17(0.0))
 		{
-			if( g_s_right_motor.pid_out_term_q17 > MAX_PID_OUT )
-				g_s_right_motor.pid_out_term_q17 = MAX_PID_OUT;
+			if( g_s_right_motor.pid_output_q17 > MAX_PID_OUT )
+				g_s_right_motor.pid_output_q17 = MAX_PID_OUT;
 		
 			EPwm1Regs.AQCTLA.bit.ZRO = AQ_CLEAR;
 			EPwm1Regs.AQCTLB.bit.ZRO = AQ_SET;
-			EPwm1Regs.CMPB = (Uint16)((_IQ17mpyIQX(g_s_right_motor.pid_out_term_q17, 17, PWM_CONVERT, 30)) >> 17);
+			EPwm1Regs.CMPB = (Uint16)(_IQ17mpyIQX(g_s_right_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 		else
 		{
-			if(g_s_right_motor.pid_out_term_q17 < MIN_PID_OUT)
-				g_s_right_motor.pid_out_term_q17 = MIN_PID_OUT;
+			if(g_s_right_motor.pid_output_q17 < MIN_PID_OUT)
+				g_s_right_motor.pid_output_q17 = MIN_PID_OUT;
 
 			EPwm1Regs.AQCTLA.bit.ZRO = AQ_SET;
 			EPwm1Regs.AQCTLB.bit.ZRO = AQ_CLEAR;
-			EPwm1Regs.CMPA.half.CMPA = (Uint16)((int16)((_IQ17mpyIQX(g_s_right_motor.pid_out_term_q17, 17, PWM_CONVERT, 30)) >> 17)  * (-1));
+			EPwm1Regs.CMPA.half.CMPA = (Uint16)(_IQ17mpyIQX(-g_s_right_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 		
-		if( g_s_left_motor.pid_out_term_q17 >= _IQ17(0.0) )
+		if( g_s_left_motor.pid_output_q17 >= _IQ17(0.0) )
 		{
-			if( g_s_left_motor.pid_out_term_q17 > MAX_PID_OUT )
-				g_s_left_motor.pid_out_term_q17 = MAX_PID_OUT;
+			if( g_s_left_motor.pid_output_q17 > MAX_PID_OUT )
+				g_s_left_motor.pid_output_q17 = MAX_PID_OUT;
 			
 			EPwm2Regs.AQCTLA.bit.ZRO = AQ_SET;
 			EPwm2Regs.AQCTLB.bit.ZRO = AQ_CLEAR;
-			EPwm2Regs.CMPA.half.CMPA = (Uint16)((_IQ17mpyIQX(g_s_left_motor.pid_out_term_q17, 17, PWM_CONVERT, 30)) >> 17);
+			EPwm2Regs.CMPA.half.CMPA = (Uint16)(_IQ17mpyIQX(g_s_left_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 		else
 		{
-			if(g_s_left_motor.pid_out_term_q17 < MIN_PID_OUT )
-				g_s_left_motor.pid_out_term_q17 = MIN_PID_OUT;
+			if(g_s_left_motor.pid_output_q17 < MIN_PID_OUT )
+				g_s_left_motor.pid_output_q17 = MIN_PID_OUT;
 			
 			EPwm2Regs.AQCTLA.bit.ZRO = AQ_CLEAR;
 			EPwm2Regs.AQCTLB.bit.ZRO = AQ_SET;
-			EPwm2Regs.CMPB = (Uint16)((int16)((_IQ17mpyIQX(g_s_left_motor.pid_out_term_q17, 17, PWM_CONVERT, 30)) >> 17) * (-1));
+			EPwm2Regs.CMPB = (Uint16)(_IQ17mpyIQX(-g_s_left_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 	}
 #endif
@@ -274,10 +296,92 @@ interrupt void motor_timer2_ISR(void)
 	gUserTimeCnt++;
 	utimetick++;
 #endif
+	// initialize motor interrupt flag
 	CpuTimer2Regs.TCR.bit.TRB = 1;
-	StartCpuTimer0();// sensor int start -- sensor shoot
+
+	// sensor interrupt start -- sensor shoot
+	StartCpuTimer0();
 }
 
+static inline void _inline_common_move_to_func()
+{	
+}
+
+// 동작 후 정차
+void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
+{
+	StopCpuTimer2();
+
+	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
+	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
+	_sp_l_dist->stop_point_q17 = _sp_r_dist->stop_point_q17 = _IQ17abs(tar_dist);
+
+	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
+	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
+	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = _IQ17(0.0);
+	
+	StartCpuTimer2();
+}
+// 동작 후 이어서 동작
+void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
+{
+	StopCpuTimer2();
+
+	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
+	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
+	_sp_l_dist->stop_point_q17 = _sp_r_dist->stop_point_q17 = _IQ17abs(tar_dist) >> 1;
+
+	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
+	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
+	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = dec_vel;
+	
+	StartCpuTimer2();
+}
+// 회전 동작 후 정차
+void turn_and_stop(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc)
+{
+	CommandVelocity cmd_vel;
+
+	StopCpuTimer2();
+
+	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
+	
+	_sp_l_dist->target_q17 = tar_dist;
+	_sp_r_dist->target_q17 = tar_dist;
+	
+	_sp_l_dist->stop_point_q17 = _sp_l_dist->target_q17 >> 1;
+	_sp_r_dist->stop_point_q17 = _IQ17abs(tar_dist);
+
+	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
+	
+	_sp_l_speed->target_vel_q17 = tar_vel;
+	_sp_r_speed->target_vel_q17 = tar_vel;
+	
+	_sp_l_speed->decel_vel_q17 = _IQ17(0.0);
+	_sp_r_speed->decel_vel_q17 = _IQ17(0.0);
+
+	StartCpuTimer2();
+}
+
+// 회전 동작 후 이어서 동작
+void turn_and_move(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
+{
+	CommandVelocity cmd_vel;
+
+	StopCpuTimer2();
+	
+
+	StartCpuTimer2();
+}
+
+// 자세 제어 -> 직선 보정 및 곡선 보정
+void mouse_stability_control()
+{
+	
+
+}
+
+/*
 // motor_vel = cmd_vel.linear_vel - cmd_vel.angular_vel * robot_width/2 
 static inline void _inline_move_to_func(CommandVelocity *p_cmd_vel, _iq17 *p_temp_q17, Uint16 run_type)
 {
@@ -374,4 +478,4 @@ void move_to_move(_iq17 tar_vel, Uint16 run_type, Uint16 restore)
 
 	StartCpuTimer2();
 }
-
+*/

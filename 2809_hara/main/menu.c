@@ -20,7 +20,9 @@
 //===========================================================================//
 
 static void _CalibrateSensorValue()
-{}
+{
+	//set_sensor();
+}
 
 static void _TestSensor()
 {}
@@ -81,8 +83,12 @@ void menu()
 	// fail safety for pointer address error.
 	if(sizeof(menu_func_) != sizeof(kMenuChar_))
 	{
+
+#if FS_TX_PRINT_FLAG
 		TxPrintf("The size of array is different",
 				 " between Function array and Character array\n");
+#endif
+
 	}
 	else
 	{

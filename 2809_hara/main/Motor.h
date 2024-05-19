@@ -18,8 +18,10 @@
 extern void init_motor(void);
 extern interrupt void motor_timer2_ISR(void);
 
-extern void move_to_stop();
-extern void move_to_move();
+extern void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel);
+extern void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel);
+
+extern void mouse_stability_control();
 
 #endif
 

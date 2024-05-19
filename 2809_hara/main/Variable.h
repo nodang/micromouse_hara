@@ -28,6 +28,8 @@
 //                                 COMMON                                   //
 //==========================================================================//
 
+#define FS_TX_PRINT_FLAG	ON
+
 #define	SW_U	(GpioDataRegs.GPADAT.bit.GPIO13)
 #define	SW_D	(GpioDataRegs.GPADAT.bit.GPIO26)
 #define	SW_R	(GpioDataRegs.GPADAT.bit.GPIO12)
@@ -41,9 +43,12 @@
 
 #define SW_DELAY	125000
 
+
 typedef volatile struct
 {
-	Uint16 motor_pwm_flag_u16:1;
+	Uint16	sensor_ir_b:1,
+			motor_pwm_b:1,
+			msc_b:1;
 }Flags;
 
 __VARIABLE_EXT__ Flags g_s_flags;
@@ -86,18 +91,18 @@ typedef volatile struct
 			lpf_out_data_diff_q17,
 			lpf_in_data_diff_q17,
 			lpf_in_data_diff_yet_q17;
-}SensorVal;
+}SensorVariable;
 
-__VARIABLE_EXT__ SensorVal g_s_sen[8];
+__VARIABLE_EXT__ SensorVariable	g_s_sen[8];
 
-__VARIABLE_EXT__ SensorVal* g_p_sen_rbs,
-							g_p_sen_rfs,
-							g_p_sen_r45,
-							g_p_sen_rf,
-							g_p_sen_lf,
-							g_p_sen_l45,
-							g_p_sen_lfs,
-							g_p_sen_lbs;
+__VARIABLE_EXT__ SensorVariable	*g_sp_sen_rbs,
+								*g_sp_sen_rfs,
+								*g_sp_sen_r45,
+								*g_sp_sen_rf,
+								*g_sp_sen_lf,
+								*g_sp_sen_l45,
+								*g_sp_sen_lfs,
+								*g_sp_sen_lbs;
 
 __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 									g_sci_on_u16;
@@ -115,39 +120,57 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 
 typedef volatile struct
 {
-	Uint16	qep_sample_u16,
-			tick_u16,
-			dong;
-	
-	int16	qep_val_i16,
-			stop_flag_i16;
+	Uint16	sample_u16;
+	int16	sample_i16;
+	_iq21	sample_q21;
+}QEPVariable;
 
-	Uint32	accel_u32;
+typedef volatile struct
+{
+	_iq27	tick_q27;
 
-	_iq27	tick_distance_q27;
+	_iq17	gone_q17,
+			target_q17,
+			remaining_q17,
+			stop_point_q17;
+}DistanceVariable;
+
+typedef volatile struct
+{
+	_iq15	accel_q15;
+
+	_iq17	curr_vel_q17,
+			next_vel_q17,
+			target_vel_q17,
+			decel_vel_q17;
+}SpeedVariable;
+
+typedef volatile struct
+{
+	_iq17	adj_ratio_q17;
+}MSCVariable;
+
+typedef volatile struct
+{
+	QEPVariable s_qep;
+	SpeedVariable s_speed;
+	DistanceVariable s_dist;
+	MSCVariable s_ctrl;
 	
-	_iq17	distance_sum_q17,
-			kp_q17,
+	_iq17	kp_q17,
 			ki_q17,
 			kd_q17,
-			user_distance_q17,
-			remaining_distance_q17,
-			current_velocity_q17,
-			stop_distance_q17,
-			decel_velocity_q17,
-			next_velocity_q17,
-			user_velocity_q17,
-			err_velocity_q17[4],
-			err_velocity_sum_q17,
+			err_vel_q17[4],
+			err_vel_sum_q17,
 			proportional_term_q17,
 			derivative_term_q17,
 			integral_term_q17,
-			pid_out_term_q17;
-	
-	_iq26	pos_adjrate_q26;
+			pid_output_q17;
 }MotorVariable;
 
 __VARIABLE_EXT__ MotorVariable	g_s_left_motor, g_s_right_motor;
+
+__VARIABLE_EXT__ volatile _iq17	g_motor_velocity;
 
 typedef volatile struct
 {
@@ -155,7 +178,7 @@ typedef volatile struct
 			angular_q17;
 }CommandVelocity;
 
-__VARIABLE_EXT__ CommandVelocity g_s_cmd_vel;
+__VARIABLE_EXT__ CommandVelocity	g_s_cmd_vel;
 
 
 

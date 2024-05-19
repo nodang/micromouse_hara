@@ -44,26 +44,26 @@
 
 #define SEN_NUM_R		(SEN_NUM_S0 - g_sensor_num_u16) // numbering reverse
 
-#define RBS_SEN0 0x00000010	/*GPIO4	 0000 0000 0000 0000  0000 0000 0001 0000*/
-#define RFS_SEN1 0x00000020	/*GPIO5	 0000 0000 0000 0000  0000 0000 0010 0000*/
-#define R45_SEN2 0x00000040	/*GPIO6	 0000 0000 0000 0000  0000 0000 0100 0000*/
-#define RF_SEN3  0x00000080	/*GPIO7	 0000 0000 0000 0000  0000 0000 1000 0000*/
-#define LF_SEN4  0x00000100	/*GPIO8	 0000 0000 0000 0000  0000 0001 0000 0000*/
-#define L45_SEN5 0x00000200	/*GPIO9	 0000 0000 0000 0000  0000 0010 0000 0000*/
-#define LFS_SEN6 0x00000400	/*GPIO10 0000 0000 0000 0000  0000 0100 0000 0000*/
-#define LBS_SEN7 0x00000800	/*GPIO11 0000 0000 0000 0000  0000 1000 0000 0000*/
-#define SEN_ALL  0x00000ff0	/*		 0000 0000 0000 0000  0000 1111 1111 0000*/
+enum SensorEnum {
+	RBS_SEN0 = 0x00000010,	/*GPIO4	 0000 0000 0000 0000  0000 0000 0001 0000*/
+	RFS_SEN1 = 0x00000020,	/*GPIO5	 0000 0000 0000 0000  0000 0000 0010 0000*/
+	R45_SEN2 = 0x00000040,	/*GPIO6	 0000 0000 0000 0000  0000 0000 0100 0000*/
+	RF_SEN3 = 0x00000080,	/*GPIO7	 0000 0000 0000 0000  0000 0000 1000 0000*/
+	LF_SEN4 = 0x00000100,	/*GPIO8	 0000 0000 0000 0000  0000 0001 0000 0000*/
+	L45_SEN5 = 0x00000200,	/*GPIO9	 0000 0000 0000 0000  0000 0010 0000 0000*/
+	LFS_SEN6 = 0x00000400,	/*GPIO10 0000 0000 0000 0000  0000 0100 0000 0000*/
+	LBS_SEN7 = 0x00000800,	/*GPIO11 0000 0000 0000 0000  0000 1000 0000 0000*/
+	SEN_ALL = 0x00000ff0,	/*		 0000 0000 0000 0000  0000 1111 1111 0000*/
 
-
-#define RBS_SEN_ADC_SEQ		0x0000
-#define RFS_SEN_ADC_SEQ		0x1111
-#define R45_SEN_ADC_SEQ		0x2222
-#define RF_SEN_ADC_SEQ		0x3333
-#define LF_SEN_ADC_SEQ		0x4444
-#define L45_SEN_ADC_SEQ		0x5555
-#define LFS_SEN_ADC_SEQ		0x6666
-#define LBS_SEN_ADC_SEQ		0x7777
-
+	RBS_SEN_ADC_SEQ = 0x0000,
+	RFS_SEN_ADC_SEQ = 0x1111,
+	R45_SEN_ADC_SEQ = 0x2222,
+	RF_SEN_ADC_SEQ = 0x3333,
+	LF_SEN_ADC_SEQ = 0x4444,
+	L45_SEN_ADC_SEQ = 0x5555,
+	LFS_SEN_ADC_SEQ = 0x6666,
+	LBS_SEN_ADC_SEQ = 0x7777
+};
 
 /* sensor places : 0000 0000 0000 0000  0000 1111 1111 0000 */
 static volatile Uint16 sensor_shoot_[SEN_NUM] = {
@@ -79,6 +79,15 @@ static volatile Uint16 sensor_seq_[SEN_NUM] = {
 void init_sensor(void)
 {
 	memset((void *)g_s_sen, 0x00, sizeof(g_s_sen));
+
+	g_sp_sen_rbs = &g_s_sen[0];
+	g_sp_sen_rfs = &g_s_sen[1];
+	g_sp_sen_r45 = &g_s_sen[2];
+	g_sp_sen_rf = &g_s_sen[3];
+	g_sp_sen_lf = &g_s_sen[4];
+	g_sp_sen_l45 = &g_s_sen[5];
+	g_sp_sen_lfs = &g_s_sen[6];
+	g_sp_sen_lbs = &g_s_sen[7];
 
 	g_sensor_num_u16 = 0;
 }
@@ -184,10 +193,15 @@ interrupt void adc_ISR(void)
 interrupt void sensor_timer0_ISR(void)
 {
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+
 #if SENSOR_ISR_DEBUG
-	GpioDataRegs.GPASET.bit.GPIO27 = 1;	
+	GpioDataRegs.GPASET.bit.GPIO27 = 1;
 #endif
-	GpioDataRegs.GPASET.all = (sensor_shoot_[g_sensor_num_u16] | sensor_shoot_[SEN_NUM_R]);
+
+	if(g_s_flags.sensor_ir_b)
+	{
+		GpioDataRegs.GPASET.all = (sensor_shoot_[g_sensor_num_u16] | sensor_shoot_[SEN_NUM_R]);
+	}
 
 	AdcRegs.ADCCHSELSEQ1.all = sensor_seq_[g_sensor_num_u16];
 	AdcRegs.ADCCHSELSEQ2.all = sensor_seq_[SEN_NUM_R];
@@ -200,7 +214,7 @@ interrupt void sensor_timer0_ISR(void)
 interrupt void adc_ISR(void)
 {
 	static Uint16 ADC_channel_cnt = 0;
-	static Uint32 sen_sum0_u32 = 0, u32_sen_sum1 = 0;
+	static Uint32 sen_sum0_u32 = 0, sen_sum1_u32 = 0;
 	_iq17 buff0, buff1;
 
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
@@ -213,20 +227,20 @@ interrupt void adc_ISR(void)
 	sen_sum0_u32 +=	AdcMirror.ADCRESULT2;
 	sen_sum0_u32 +=	AdcMirror.ADCRESULT3;
 	
-	u32_sen_sum1 +=	AdcMirror.ADCRESULT4;
-	u32_sen_sum1 +=	AdcMirror.ADCRESULT5;
-	u32_sen_sum1 +=	AdcMirror.ADCRESULT6;
-	u32_sen_sum1 +=	AdcMirror.ADCRESULT7;
+	sen_sum1_u32 +=	AdcMirror.ADCRESULT4;
+	sen_sum1_u32 +=	AdcMirror.ADCRESULT5;
+	sen_sum1_u32 +=	AdcMirror.ADCRESULT6;
+	sen_sum1_u32 +=	AdcMirror.ADCRESULT7;
 	
 	sen_sum0_u32 +=	AdcMirror.ADCRESULT8;
 	sen_sum0_u32 +=	AdcMirror.ADCRESULT9;
 	sen_sum0_u32 +=	AdcMirror.ADCRESULT10;
 	sen_sum0_u32 +=	AdcMirror.ADCRESULT11;
 	
-	u32_sen_sum1 +=	AdcMirror.ADCRESULT12;
-	u32_sen_sum1 +=	AdcMirror.ADCRESULT13;
-	u32_sen_sum1 +=	AdcMirror.ADCRESULT14;
-	u32_sen_sum1 +=	AdcMirror.ADCRESULT15;
+	sen_sum1_u32 +=	AdcMirror.ADCRESULT12;
+	sen_sum1_u32 +=	AdcMirror.ADCRESULT13;
+	sen_sum1_u32 +=	AdcMirror.ADCRESULT14;
+	sen_sum1_u32 +=	AdcMirror.ADCRESULT15;
 
 	AdcRegs.ADCTRL2.bit.RST_SEQ1 = 1;
 	AdcRegs.ADCST.bit.INT_SEQ1_CLR = 1;
@@ -234,9 +248,11 @@ interrupt void adc_ISR(void)
 	if(ADC_channel_cnt < 2)
 	{
 		ADC_channel_cnt++;
+
 #if SENSOR_ISR_DEBUG
 		GpioDataRegs.GPATOGGLE.bit.GPIO27 = 1;
 #endif
+
 		AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
 	}
 	else
@@ -244,7 +260,7 @@ interrupt void adc_ISR(void)
 		ADC_channel_cnt = 0;
 		g_s_sen[g_sensor_num_u16].value_u16 	= (Uint16)(sen_sum0_u32 >> 5); // divide 8 * 3
 		g_s_sen[SEN_NUM_R].value_u16 			= (Uint16)(sen_sum0_u32 >> 5); // divide 8 * 3
-		sen_sum0_u32 = u32_sen_sum1 = 0;
+		sen_sum0_u32 = sen_sum1_u32 = 0;
 		
 		//==================================================================//
 		// 						Digital IIR LPF Part						//
@@ -321,9 +337,11 @@ interrupt void adc_ISR(void)
 			g_sensor_num_u16 = 0;
 			StopCpuTimer0();
 		}
+
 #if SENSOR_ISR_DEBUG
 		GpioDataRegs.GPACLEAR.bit.GPIO27 = 1;
 #endif
+
 	}
 	
 }
@@ -331,7 +349,7 @@ interrupt void adc_ISR(void)
 
 static void _set_side_sensor(void)
 {
-
+	
 }
 
 static void _set_45_sensor(void)
