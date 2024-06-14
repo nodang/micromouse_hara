@@ -43,12 +43,18 @@
 
 #define SW_DELAY	125000
 
+#define SCIA_ISR_ON		do {										\
+							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
+						}while(0)
+#define SCIA_ISR_OFF 	do {										\
+							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
+						}while(0)
 
 typedef volatile struct
 {
 	Uint16	sensor_ir_b:1,
 			motor_pwm_b:1,
-			msc_b:1;
+			adj_pos_b:1;
 }Flags;
 
 __VARIABLE_EXT__ Flags g_s_flags;
@@ -65,13 +71,6 @@ __VARIABLE_EXT__ Flags g_s_flags;
 #define L45		g_s_sen[5]	// left 45 sensor
 #define LFS		g_s_sen[6]	// left front side sensor
 #define LBS		g_s_sen[7]	// left back side sensor
-
-#define SCIA_ISR_ON		do {										\
-							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
-						}while(0)
-#define SCIA_ISR_OFF 	do {										\
-							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
-						}while(0)
 
 typedef volatile struct
 {
@@ -132,7 +131,7 @@ typedef volatile struct
 	_iq17	gone_q17,
 			target_q17,
 			remaining_q17,
-			stop_point_q17;
+			decel_point_q17;
 }DistanceVariable;
 
 typedef volatile struct
@@ -148,14 +147,14 @@ typedef volatile struct
 typedef volatile struct
 {
 	_iq17	adj_ratio_q17;
-}MSCVariable;
+}AdjustPositionVariable;
 
 typedef volatile struct
 {
 	QEPVariable s_qep;
 	SpeedVariable s_speed;
 	DistanceVariable s_dist;
-	MSCVariable s_ctrl;
+	AdjustPositionVariable s_adj;
 	
 	_iq17	kp_q17,
 			ki_q17,
@@ -168,17 +167,32 @@ typedef volatile struct
 			pid_output_q17;
 }MotorVariable;
 
-__VARIABLE_EXT__ MotorVariable	g_s_left_motor, g_s_right_motor;
-
-__VARIABLE_EXT__ volatile _iq17	g_motor_velocity;
-
 typedef volatile struct
 {
 	_iq17	linear_q17,
 			angular_q17;
-}CommandVelocity;
+}CommandVelocityVariable;
 
-__VARIABLE_EXT__ CommandVelocity	g_s_cmd_vel;
+__VARIABLE_EXT__ MotorVariable	g_s_left_motor,
+								g_s_right_motor;
+
+__VARIABLE_EXT__ CommandVelocityVariable	g_s_cmd_vel;
+
+//==========================================================================//
+//                                POSITION                                  //
+//==========================================================================//
+
+typedef volatile struct
+{
+	_iq17	x_q17,
+			y_q17,
+			th_q17,
+			v_q17,
+			w_q17;
+}PositionVariable;
+
+__VARIABLE_EXT__ PositionVariable	g_s_epi,
+									g_s_eps;
 
 
 

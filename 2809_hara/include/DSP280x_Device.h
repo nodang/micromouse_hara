@@ -115,12 +115,6 @@ typedef long double     float64;
 #endif
 
 
-	
-	
-
-
-
-
 //---------------------------------------------------------------------------
 // Include All Peripheral Header Files:
 //
@@ -148,14 +142,15 @@ typedef long double     float64;
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-
+ 
 #include "..\main\Main.h"
 #include "..\main\VFD.h"
 #include "..\main\Variable.h"
 #include "..\main\menu.h"
-#include "..\main\motor.h"
-#include "..\main\rom.h"
 #include "..\main\sensor.h"
+#include "..\main\motor.h"
+#include "..\main\position.h"
+#include "..\main\rom.h" 
 #include "..\main\search.h"
 #include "..\main\fastrun.h"
 #include "..\main\extremerun.h"

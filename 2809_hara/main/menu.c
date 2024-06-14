@@ -52,25 +52,17 @@ static void _Run()
 void menu()
 {
 	static void (*menu_func_[])() = {
-		_CalibrateSensorValue,
-		_TestSensor,
-		_CalibrateMotorParam,
-		_TestMotor,
-		_CalibrateRunningParam,
-		_TestRunning,
-		_TestAlgorithm,
-		_Run
+		_CalibrateSensorValue,	_TestSensor,
+		_CalibrateMotorParam,	_TestMotor,
+		_CalibrateRunningParam,	_TestRunning,
+		_TestAlgorithm,			_Run
 	};
 
 	static const char *kMenuChar_[] = {
-		"cal  SEN",
-		"test SEN",
-		"cal  MOT",
-		"test MOT",
-		"cal  RUN",
-		"test RUN",
-		"testALGO",
-		"     RUN"
+		"cal  SEN",		"test SEN",
+		"cal  MOT",		"test MOT",
+		"cal  RUN",		"test RUN",
+		"testALGO",		"     RUN"
 	};
 
 	static int16	menu_cnt_i16_ = 0,

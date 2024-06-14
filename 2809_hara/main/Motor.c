@@ -12,8 +12,6 @@
 // $Release Date: 2011.10.16 $
 //###########################################################################
 
-#define   _MOTOR_
-
 #include "DSP280x_Device.h"
 #include "DSP280x_Examples.h"   // DSP280x Examples Include File
 #include "Main.h"
@@ -40,9 +38,15 @@
 #define BLOCK_WIDTH			_IQ17(180.0)
 #define HALF_BLOCK_WIDTH	_IQ17(90.0)
 
-#define ROBOT_WIDTH_DIV2	_IQ17(100.0)
+#define ROBOT_WIDTH_DIV2	_IQ17(40.5)
+// width = 81, length 108
 
 #define CALC_DIST(V,W,R)	_IQ17mpy(_IQ17mpy(V, R), W)
+
+#define CONV2ABS_IQ17(value)	do {						\
+									if(value < _IQ17(0.0))	\
+										value = -value;		\
+								} while(0)
 
 enum RunType {
 	STR = 0x00,
@@ -61,7 +65,7 @@ enum RunType {
 static QEPVariable *_sp_r_qep, *_sp_l_qep;
 static DistanceVariable *_sp_r_dist, *_sp_l_dist;
 static SpeedVariable *_sp_r_speed, *_sp_l_speed;
-static MSCVariable *_sp_r_msc, *_sp_l_msc;
+static AdjustPositionVariable *_sp_r_msc, *_sp_l_msc;
 
 static void _init_motor_structure(MotorVariable *sp_motor)
 {
@@ -89,15 +93,15 @@ void init_motor(void)
 	_sp_r_speed = &g_s_right_motor.s_speed;
 	_sp_l_speed = &g_s_left_motor.s_speed;
 
-	_sp_r_msc = &g_s_right_motor.s_ctrl;
-	_sp_l_msc = &g_s_left_motor.s_ctrl;
+	_sp_r_msc = &g_s_right_motor.s_adj;
+	_sp_l_msc = &g_s_left_motor.s_adj;
 
-	memset((void *)&g_s_cmd_vel, 0x00, sizeof(CommandVelocity));
+	memset((void *)&g_s_cmd_vel, 0x00, sizeof(CommandVelocityVariable));
 }
 
 interrupt void motor_timer2_ISR(void)
 {
-	//QEP값을 받는다
+	// QEP값을 받는다
 	// save qep sampling value
 	_sp_r_qep->sample_u16 = (Uint16)(RightQepRegs.QPOSCNT);
 	_sp_l_qep->sample_u16 = (Uint16)(LeftQepRegs.QPOSCNT);
@@ -106,7 +110,7 @@ interrupt void motor_timer2_ISR(void)
 	RightQepRegs.QEPCTL.bit.SWI = 1;
 	LeftQepRegs.QEPCTL.bit.SWI = 1;
 
-	//받은 값을 int16으로 변환한다.
+	// 받은 값을 int16으로 변환한다.
 	// transform the sample type to int16
 	if(_sp_r_qep->sample_u16 >= ENCODER_RESOLUTION)
 		_sp_r_qep->sample_i16 = (int16)_sp_r_qep->sample_u16 - ENCODER_RESOLUTION_x2;
@@ -118,44 +122,48 @@ interrupt void motor_timer2_ISR(void)
 	else
 		_sp_l_qep->sample_i16 = (int16)_sp_l_qep->sample_u16;
 
-	//받은 값을 IQ21으로 변환한다. -> -1024 <= IQ21 < 1024
+	// 받은 값을 IQ21으로 변환한다. -> -1024 <= IQ21 < 1024
 	// transfrom the sample type to IQ21
 	_sp_r_qep->sample_q21 = ((int32)_sp_r_qep->sample_i16) << 21;
 	_sp_l_qep->sample_q21 = ((int32)_sp_l_qep->sample_i16) << 21;
 
-	//한 틱당 거리를 구한다.
+	// 한 틱당 거리를 구한다.
 	// calculate a tick distance. multiply the sample by distance per a pulse
 	_sp_r_dist->tick_q27 = _IQ27mpyIQX(_sp_r_qep->sample_q21, 21, PULSE_TO_DIST, 30);
 	_sp_l_dist->tick_q27 = _IQ27mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_DIST, 30);
 
-	//틱당 거리를 합쳐 현재의 거리를 구한다.
+	// 틱당 거리를 합쳐 현재의 거리를 구한다.
 	// calculate moved distance(from start to current). sum all tick
 	_sp_r_dist->gone_q17 += (_sp_r_dist->tick_q27 >> 10);
 	_sp_l_dist->gone_q17 += (_sp_l_dist->tick_q27 >> 10);
 
 #if 1
-	//사용자가 정해준 거리에 합친 거리를 제거해 남은 거리를 구한다.
+	// 사용자가 정해준 거리에 합친 거리를 제거해 남은 거리를 구한다.
 	// calculate remainging distance(from current to end). minus gone distance by target distance
 	_sp_r_dist->remaining_q17 = _sp_r_dist->target_q17 - _sp_r_dist->gone_q17;
 	_sp_l_dist->remaining_q17 = _sp_l_dist->target_q17 - _sp_l_dist->gone_q17;
 
-	//펄스당 속도와 QEP를 곱해 현재의 속도를 구한다.
+	// convert to the absolute value
+	CONV2ABS_IQ17(_sp_r_dist->remaining_q17);
+	CONV2ABS_IQ17(_sp_l_dist->remaining_q17);
+
+	// 펄스당 속도와 QEP를 곱해 현재의 속도를 구한다.
 	// calculate current velocity. multiply the sample by velocity per a pulse
 	_sp_r_speed->curr_vel_q17 = _IQ17mpyIQX(_sp_r_qep->sample_q21, 21, PULSE_TO_VEL, 26);
 	_sp_l_speed->curr_vel_q17 = _IQ17mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_VEL, 26);
 	
-	//남은 거리 확인 후 목표 감속 속도 설정
+	// 남은 거리 확인 후 목표 감속 속도 설정
 	// if remainging distance over the stop point set then set target velocity to deceleration target velocity
-	if(_IQ17abs(_sp_r_dist->remaining_q17) <= _sp_r_dist->stop_point_q17)
+	if(_sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17)
 	{
 		_sp_r_speed->target_vel_q17 = _sp_r_speed->decel_vel_q17;
 	}
-	if(_IQ17abs(_sp_l_dist->remaining_q17) <= _sp_l_dist->stop_point_q17)
+	if(_sp_l_dist->remaining_q17 <= _sp_l_dist->decel_point_q17)
 	{
 		_sp_l_speed->target_vel_q17 = _sp_l_speed->decel_vel_q17;
 	}
 
-	//가감속
+	// 가감속
 	// calculate next target velocity. accelation or decelaration
 	if(_sp_r_speed->target_vel_q17 > _sp_r_speed->next_vel_q17)
 	{
@@ -204,13 +212,15 @@ interrupt void motor_timer2_ISR(void)
 	}
 #endif
 
-	// 직선 보정 및 곡선 보정
-	if(g_s_flags.msc_b)
+	// 자세 보정
+	if(g_s_flags.adj_pos_b)
 	{
-		mouse_stability_control();
+		estimate_position_used_input();
+		estimate_position_used_sensor();
+		adjust_position();
 	}
 
-	//모터 PID
+	// 모터 PID
 	// motor PID
 	g_s_right_motor.err_vel_sum_q17 -= g_s_right_motor.err_vel_q17[3];
 	g_s_right_motor.err_vel_q17[3] = g_s_right_motor.err_vel_q17[2];
@@ -303,10 +313,6 @@ interrupt void motor_timer2_ISR(void)
 	StartCpuTimer0();
 }
 
-static inline void _inline_common_move_to_func()
-{	
-}
-
 // 동작 후 정차
 void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 {
@@ -314,7 +320,7 @@ void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
-	_sp_l_dist->stop_point_q17 = _sp_r_dist->stop_point_q17 = _IQ17abs(tar_dist);
+	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = _IQ17abs(tar_dist);
 
 	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
@@ -322,6 +328,7 @@ void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 	
 	StartCpuTimer2();
 }
+
 // 동작 후 이어서 동작
 void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 {
@@ -329,7 +336,7 @@ void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
-	_sp_l_dist->stop_point_q17 = _sp_r_dist->stop_point_q17 = _IQ17abs(tar_dist) >> 1;
+	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = _IQ17abs(tar_dist) >> 1;
 
 	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
@@ -337,36 +344,77 @@ void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 	
 	StartCpuTimer2();
 }
-// 회전 동작 후 정차
-void turn_and_stop(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc)
+
+// Turn simulation made by python
+// https://colab.research.google.com/drive/1nX95cfM9avqoyKDrgAPEYbWbE7YZhOJ7#scrollTo=FaAzIS9wwqic&line=13&uniqifier=1
+void calc_target_velocity_for_turn(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _iq17 tar_v)
 {
-	CommandVelocity cmd_vel;
+	_iq17 tar_vr, tar_vl, abs_diff_vr, abs_diff_vl, rdt, ldt, r_dist, l_dist, temp;
 
-	StopCpuTimer2();
+	if(tar_rad < _IQ17(10.0) && tar_rad > _IQ17(-10.0))
+	{
+		TxPrintf("Target R set is very small, so to be adjust default.\n");
+		tar_rad = _IQ17(90.0);
+	}
 
-	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
-	
-	_sp_l_dist->target_q17 = tar_dist;
-	_sp_r_dist->target_q17 = tar_dist;
-	
-	_sp_l_dist->stop_point_q17 = _sp_l_dist->target_q17 >> 1;
-	_sp_r_dist->stop_point_q17 = _IQ17abs(tar_dist);
+	temp = _IQ17mpy(_IQ17div(tar_v, tar_rad), ROBOT_WIDTH_DIV2);
 
-	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
-	
-	_sp_l_speed->target_vel_q17 = tar_vel;
-	_sp_r_speed->target_vel_q17 = tar_vel;
-	
-	_sp_l_speed->decel_vel_q17 = _IQ17(0.0);
-	_sp_r_speed->decel_vel_q17 = _IQ17(0.0);
+	// th - left: +, right: -
+	if(tar_th >= _IQ17(0.0))
+	{
+		tar_vr = tar_v + temp;
+		tar_vl = tar_v - temp;
+	}
+	else
+	{
+		tar_vr = tar_v - temp;
+		tar_vl = tar_v + temp;
+	}
 
-	StartCpuTimer2();
+	abs_diff_vr = tar_vr - _sp_r_speed->curr_vel_q17;
+	abs_diff_vl = tar_vl - _sp_l_speed->curr_vel_q17;
+
+	CONV2ABS_IQ17(abs_diff_vr);
+	CONV2ABS_IQ17(abs_diff_vl);
+
+	temp = _IQ15div(_IQ15(1.0), tar_acc);
+
+	rdt = _IQ17mpyIQX(abs_diff_vr, 17, temp, 15);
+	ldt = _IQ17mpyIQX(abs_diff_vl, 17, temp, 15);
+
+	// th - left: +, right: -
+	if(tar_th >= _IQ17(0.0))
+	{
+		_sp_r_speed->target_vel_q17 = tar_vr;
+		_sp_l_speed->target_vel_q17 = tar_vl;
+
+		r_dist = _IQ17mpy(rdt, abs_diff_vl) >> 2;
+		l_dist = _IQ17mpy(ldt, abs_diff_vl) >> 2;
+		
+		temp = r_dist + l_dist + (l_dist << 1);
+
+		_sp_r_dist->target_q17 = _IQ17mpy(tar_rad + ROBOT_WIDTH_DIV2, tar_th) + temp;
+		_sp_r_dist->target_q17 = _IQ17mpy(tar_rad - ROBOT_WIDTH_DIV2, tar_th) + temp;
+	}
+	else
+	{
+		_sp_r_speed->target_vel_q17 = tar_vr;
+		_sp_l_speed->target_vel_q17 = tar_vl;
+
+		r_dist = _IQ17mpy(rdt, abs_diff_vr) >> 2;
+		l_dist = _IQ17mpy(ldt, abs_diff_vr) >> 2;
+		
+		temp = l_dist + r_dist + (r_dist << 1);
+
+		_sp_r_dist->target_q17 = _IQ17mpy(tar_rad - ROBOT_WIDTH_DIV2, tar_th) + temp;
+		_sp_r_dist->target_q17 = _IQ17mpy(tar_rad + ROBOT_WIDTH_DIV2, tar_th) + temp;
+	}
 }
 
 // 회전 동작 후 이어서 동작
 void turn_and_move(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 {
-	CommandVelocity cmd_vel;
+	CommandVelocityVariable cmd_vel;
 
 	StopCpuTimer2();
 	
@@ -374,16 +422,9 @@ void turn_and_move(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _iq17 tar_vel, _i
 	StartCpuTimer2();
 }
 
-// 자세 제어 -> 직선 보정 및 곡선 보정
-void mouse_stability_control()
-{
-	
-
-}
-
 /*
 // motor_vel = cmd_vel.linear_vel - cmd_vel.angular_vel * robot_width/2 
-static inline void _inline_move_to_func(CommandVelocity *p_cmd_vel, _iq17 *p_temp_q17, Uint16 run_type)
+static inline void _inline_move_to_func(CommandVelocityVariable *p_cmd_vel, _iq17 *p_temp_q17, Uint16 run_type)
 {
 	// run type : 0(tr45), 1(tr90), 2(tr135), 3(tr180), 4(tl45), 5(tl90), 6(tl135), 7(tl180), 8(str)
 	if(run_type == STR)
@@ -435,7 +476,7 @@ static inline void _inline_move_to_func(CommandVelocity *p_cmd_vel, _iq17 *p_tem
 
 void move_to_stop(Uint16 run_type)
 {
-	CommandVelocity cmd_vel;
+	CommandVelocityVariable cmd_vel;
 	_iq17 q17_temp;
 
 	StopCpuTimer2();
@@ -453,7 +494,7 @@ void move_to_stop(Uint16 run_type)
 
 void move_to_move(_iq17 tar_vel, Uint16 run_type, Uint16 restore)
 {
-	CommandVelocity cmd_vel;
+	CommandVelocityVariable cmd_vel;
 	_iq17 q17_temp;
 
 	StopCpuTimer2();
