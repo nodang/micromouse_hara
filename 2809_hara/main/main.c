@@ -48,7 +48,8 @@ void main(void)
 	System_Init();
 	Variable_Init();
 
-#if 0
+// condition is FALSE -> measure the sensor data to calculate dist
+#if 1
 	menu();
 #else
 	VFDPrintf("BE_READY");

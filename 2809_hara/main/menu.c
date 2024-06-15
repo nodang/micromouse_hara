@@ -22,10 +22,16 @@
 static void _CalibrateSensorValue()
 {
 	//set_sensor();
+	
+	VFDPrintf("made yet");
+	DELAY_US(SW_DELAY);
 }
 
 static void _TestSensor()
-{}
+{
+	VFDPrintf("made yet");
+	DELAY_US(SW_DELAY);
+}
 
 #define VEL_NUM	1
 #define VEL_RESOLUTION	50
@@ -113,10 +119,7 @@ static void _CalibrateMotorParam()
 	};
 
 	static const char *kMenuChar_[] = {
-		"cal  SEN",		"test SEN",
-		"cal  MOT",		"test MOT",
-		"cal  RUN",		"test RUN",
-		"testALGO",		"     RUN"
+		"calM vel",	"calM acc",	"calM pid"
 	};
 
 	static int16 menu_cnt_i16_;
@@ -160,6 +163,9 @@ static void _TestMotor()
 
 		if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
+
+		g_s_right_motor.s_speed.target_vel_q17 = test_vel_i32;
+		g_s_left_motor.s_speed.target_vel_q17 = test_vel_i32;
 	}
 
 	StopCpuTimer2();
@@ -171,16 +177,27 @@ static void _TestMotor()
 
 static void _CalibrateRunningParam()
 {
+	VFDPrintf("made yet");
+	DELAY_US(SW_DELAY);
 }
 
 static void _TestRunning()
-{}
+{
+	VFDPrintf("made yet");
+	DELAY_US(SW_DELAY);
+}
 
 static void _TestAlgorithm()
-{}
+{
+	VFDPrintf("made yet");
+	DELAY_US(SW_DELAY);
+}
 
 static void _Run()
-{}
+{	
+	VFDPrintf("made yet");
+	DELAY_US(SW_DELAY);
+}
 
 //===========================================================================//
 //	Extern
