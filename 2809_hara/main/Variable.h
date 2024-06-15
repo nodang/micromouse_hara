@@ -41,7 +41,8 @@
 
 #define BUZZ	(GpioDataRegs.GPBDAT.bit.GPIO33)
 
-#define SW_DELAY	125000
+#define SW_DELAY		125000
+#define SW_DELAY_HALF	62500
 
 #define SCIA_ISR_ON		do {										\
 							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
@@ -177,6 +178,16 @@ __VARIABLE_EXT__ MotorVariable	g_s_left_motor,
 								g_s_right_motor;
 
 __VARIABLE_EXT__ CommandVelocityVariable	g_s_cmd_vel;
+
+
+// Do not reset
+__VARIABLE_EXT__ int32	g_ref_vel_i32;
+
+__VARIABLE_EXT__ Uint16	g_accel_u16;
+__VARIABLE_EXT__ Uint32	g_motor_kp_u32,
+						g_motor_ki_u32,
+						g_motor_kd_u32;
+// until here
 
 //==========================================================================//
 //                                POSITION                                  //

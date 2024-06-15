@@ -9,7 +9,6 @@ SI/
 *.sln
 *.vcxproj
 
-*.hex
 *.map
 *.out
 *.CF3
