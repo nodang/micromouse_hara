@@ -2,15 +2,15 @@
 계산작업/
 model/
 Compiler/
-2809moniter/
 SI/
+si*/
 .vs/
 
 *.sln
 *.vcxproj
 
 *.map
-*.out
+
 *.CF3
 *.asm
 *.obj
