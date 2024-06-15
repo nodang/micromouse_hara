@@ -50,7 +50,7 @@ void main(void)
 
 // condition is FALSE -> measure the sensor data to calculate dist
 #if 1
-	menu();
+	Menu();
 #else
 	VFDPrintf("BE_READY");
 
@@ -113,7 +113,7 @@ void main(void)
 		GpioDataRegs.GPACLEAR.bit.GPIO27 = 1;
 		DELAY_US(500000);
 #endif
-	}
+	//}
 }
 
 void Delay(Uint32 Cnt)

@@ -19,7 +19,7 @@
 //	Static
 //===========================================================================//
 
-static void _CalibrateSensorValue()
+static void _CalibrateSensorValue(void)
 {
 	//set_sensor();
 	
@@ -27,7 +27,7 @@ static void _CalibrateSensorValue()
 	DELAY_US(SW_DELAY);
 }
 
-static void _TestSensor()
+static void _TestSensor(void)
 {
 	VFDPrintf("made yet");
 	DELAY_US(SW_DELAY);
@@ -35,7 +35,7 @@ static void _TestSensor()
 
 #define VEL_NUM	1
 #define VEL_RESOLUTION	50
-static void _velocity()
+static void _Velocity(void)
 {
 	Uint16 sw_cnt = 0;
 	int32 *p_param[] = { &g_ref_vel_i32 };
@@ -61,7 +61,7 @@ static void _velocity()
 
 #define ACC_NUM	1
 #define ACC_RESOLUTION	500
-static void _accelaration()
+static void _Accelaration(void)
 {
 	Uint16 sw_cnt = 0;
 	Uint16 *p_param[] = { &g_accel_u16 };
@@ -87,7 +87,7 @@ static void _accelaration()
 
 #define PID_NUM	3
 #define PID_RESOLUTION	1
-static void _motor_pid()
+static void _MotorPID(void)
 {
 	Uint16 sw_cnt = 0;
 	Uint32 *p_param[] = { &g_motor_kp_u32, &g_motor_ki_u32, &g_motor_kd_u32 };
@@ -112,10 +112,10 @@ static void _motor_pid()
 }
 
 #define CMP_MENU_NUM	3
-static void _CalibrateMotorParam()
+static void _CalibrateMotorParam(void)
 {
 	static void (*menu_func_[])() = {
-		_velocity, _accelaration, _motor_pid
+		_Velocity, _Accelaration, _MotorPID
 	};
 
 	static const char *kMenuChar_[] = {
@@ -142,20 +142,18 @@ static void _CalibrateMotorParam()
 
 			menu_func_[menu_cnt_i16_]();
 		}
-		// menu count up or down
+		// Menu count up or down
 		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_++; }
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_--; }
 	}
 }
 
 #define RESOLUTION_TEST_VEL	500
-static void _TestMotor()
+static void _TestMotor(void)
 {
 	int32 test_vel_i32 = 0;
 
-	g_s_flags.motor_pwm_b = ON;
-	STANDBY_ON;
-	StartCpuTimer2();
+	ACTIVATE_MOTOR;
 
 	while(SW_U)
 	{
@@ -168,32 +166,82 @@ static void _TestMotor()
 		g_s_left_motor.s_speed.target_vel_q17 = test_vel_i32;
 	}
 
-	StopCpuTimer2();
-	STANDBY_OFF;
-	g_s_flags.motor_pwm_b = OFF;
-
+	DEACTIVATE_MOTOR;
+	
 	DELAY_US(SW_DELAY);
 }
 
-static void _CalibrateRunningParam()
+static void _CalibrateRunningParam(void)
 {
 	VFDPrintf("made yet");
 	DELAY_US(SW_DELAY);
 }
 
-static void _TestRunning()
+static void _Move2Stop(void)
+{
+	ACTIVATE_MOTOR;
+
+	VFDPrintf("m2sREADY");
+	while(SW_D);
+	DELAY_US(SW_DELAY);
+	
+	move_to_stop(_IQ17(BLOCK_WIDTH),_IQ15(3000.0), _IQ15(650.0));
+	
+	while(SW_U)
+	{
+	}
+
+	DEACTIVATE_MOTOR;
+
+	DELAY_US(SW_DELAY);
+}
+
+#define TR_MENU_NUM	1
+static void _TestRunning(void)
+{
+	static void (*menu_func_[])() = {
+		_Move2Stop
+	};
+
+	static const char *kMenuChar_[] = {
+		"testRm2s"
+	};
+
+	static int16 menu_cnt_i16_;
+	
+	menu_cnt_i16_ = 0;
+	while(SW_U)
+	{
+		// fail safety
+		// menu_cnt is not bigger than the number of function
+		// and cannot be any negative number.
+		if(menu_cnt_i16_ >= TR_MENU_NUM)	menu_cnt_i16_ = 0;
+		else if(menu_cnt_i16_ < 0)			menu_cnt_i16_ = TR_MENU_NUM - 1;
+
+		VFDPrintf((char*)kMenuChar_[menu_cnt_i16_]);
+
+		// entry the function
+		if(!SW_D)
+		{
+			DELAY_US(SW_DELAY);
+
+			menu_func_[menu_cnt_i16_]();
+		}
+		// Menu count up or down
+		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_--; }
+	}
+
+	DELAY_US(SW_DELAY);
+}
+
+static void _TestAlgorithm(void)
 {
 	VFDPrintf("made yet");
 	DELAY_US(SW_DELAY);
 }
 
-static void _TestAlgorithm()
-{
-	VFDPrintf("made yet");
-	DELAY_US(SW_DELAY);
-}
-
-static void _Run()
+static void _Run(void)
 {	
 	VFDPrintf("made yet");
 	DELAY_US(SW_DELAY);
@@ -204,7 +252,7 @@ static void _Run()
 //===========================================================================//
 
 #define MENU_NUM	8
-void menu()
+void Menu(void)
 {
 	static void (*menu_func_[])() = {
 		_CalibrateSensorValue,	_TestSensor,
@@ -245,7 +293,7 @@ void menu()
 			init_motor();
 			menu_func_[menu_cnt_i16_]();
 		}
-		// menu count up or down
+		// Menu count up or down
 		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_++; }
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_--; }
 	}

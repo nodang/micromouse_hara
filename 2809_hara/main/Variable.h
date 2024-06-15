@@ -25,6 +25,16 @@
 #endif	
 
 //==========================================================================//
+//                           ROBOT ENVIROMENT                               //
+//==========================================================================//
+
+#define BLOCK_WIDTH			_IQ17(180.0)
+#define HALF_BLOCK_WIDTH	_IQ17(90.0)
+
+// width = 81, length 108
+#define ROBOT_WIDTH_DIV2	_IQ17(40.5)
+
+//==========================================================================//
 //                                 COMMON                                   //
 //==========================================================================//
 
@@ -117,6 +127,18 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 #define STANDBY_OFF do {										\
 						GpioDataRegs.GPADAT.bit.GPIO22 = OFF;	\
 					}while(0)
+
+#define ACTIVATE_MOTOR		do {								\
+								g_s_flags.motor_pwm_b = ON;		\
+								STANDBY_ON;						\
+								StartCpuTimer2();				\
+							}while(0)
+
+#define DEACTIVATE_MOTOR	do {								\
+								StopCpuTimer2();				\
+								STANDBY_OFF;					\
+								g_s_flags.motor_pwm_b = OFF;	\
+							}while(0)
 
 typedef volatile struct
 {

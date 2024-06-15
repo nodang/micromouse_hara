@@ -35,12 +35,6 @@
 #define PULSE_TO_VEL	_IQ26(18.407769454627695)	
 // 바퀴지름 *PHI[75.398223686155037723103441198708]/(512*4)/기어비(4.)/0.0005
 
-#define BLOCK_WIDTH			_IQ17(180.0)
-#define HALF_BLOCK_WIDTH	_IQ17(90.0)
-
-#define ROBOT_WIDTH_DIV2	_IQ17(40.5)
-// width = 81, length 108
-
 #define CALC_DIST(V,W,R)	_IQ17mpy(_IQ17mpy(V, R), W)
 
 #define CONV2ABS_IQ17(value)	do {						\
