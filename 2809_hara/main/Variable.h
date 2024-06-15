@@ -45,20 +45,47 @@
 #define	SW_R	(GpioDataRegs.GPADAT.bit.GPIO12)
 #define	SW_L	(GpioDataRegs.GPBDAT.bit.GPIO32)
 
-#define F_LED	(GpioDataRegs.GPADAT.bit.GPIO23)
-#define R_LED	(GpioDataRegs.GPBDAT.bit.GPIO34)
-#define L_LED	(GpioDataRegs.GPADAT.bit.GPIO27)
-
-#define BUZZ	(GpioDataRegs.GPBDAT.bit.GPIO33)
-
 #define SW_DELAY		125000
 #define SW_DELAY_HALF	62500
+
+/*
+#define LED_F	(GpioDataRegs.GPADAT.bit.GPIO23)
+#define LED_R	(GpioDataRegs.GPBDAT.bit.GPIO34)
+#define LED_L	(GpioDataRegs.GPADAT.bit.GPIO27)
+
+#define BUZZ	(GpioDataRegs.GPBDAT.bit.GPIO33)
+*/
+
+#define LED_F_ON 	do {										\
+						GpioDataRegs.GPADAT.bit.GPIO23 = ON;	\
+					}while(0)
+#define LED_F_OFF 	do {										\
+						GpioDataRegs.GPADAT.bit.GPIO23 = OFF;	\
+					}while(0)
+#define LED_R_ON 	do {										\
+						GpioDataRegs.GPBDAT.bit.GPIO34 = ON;	\
+					}while(0)
+#define LED_R_OFF 	do {										\
+						GpioDataRegs.GPBDAT.bit.GPIO34 = OFF;	\
+					}while(0)
+#define LED_L_ON 	do {										\
+						GpioDataRegs.GPADAT.bit.GPIO27 = ON;	\
+					}while(0)
+#define LED_L_OFF 	do {										\
+						GpioDataRegs.GPADAT.bit.GPIO27 = OFF;	\
+					}while(0)
+#define BUZZ_ON 	do {										\
+						GpioDataRegs.GPBDAT.bit.GPIO33 = ON;	\
+					}while(0)
+#define BUZZ_OFF 	do {										\
+						GpioDataRegs.GPBDAT.bit.GPIO33 = OFF;	\
+					}while(0)
 
 #define SCIA_ISR_ON		do {										\
 							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
 						}while(0)
 #define SCIA_ISR_OFF 	do {										\
-							SciaRegs.SCICTL2.bit.RXBKINTENA = ON;	\
+							SciaRegs.SCICTL2.bit.RXBKINTENA = OFF;	\
 						}while(0)
 
 typedef volatile struct

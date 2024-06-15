@@ -37,6 +37,13 @@ void Variable_Init(void)
 {
 	memset((void *)&g_s_flags, 0x00, sizeof(g_s_flags));
 
+	// Initialize "don't reset" things of motor global variables
+	g_ref_vel_i32 =
+	g_accel_u16 =
+	g_motor_kp_u32 =
+	g_motor_ki_u32 =
+	g_motor_kd_u32 = 0;
+
 	init_motor();
 	init_sensor();
 }

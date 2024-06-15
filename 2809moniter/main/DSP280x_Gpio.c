@@ -165,8 +165,8 @@ void InitGpio(void)
    GpioCtrlRegs.GPBDIR.bit.GPIO32 = 0;
    GpioCtrlRegs.GPBDIR.bit.GPIO33 = 1;
    GpioCtrlRegs.GPBDIR.bit.GPIO34 = 1;
-*/
-   GpioCtrlRegs.GPBDIR.all = 0x03;
+*/	// 0110
+   GpioCtrlRegs.GPBDIR.all = 0x6;
    
 
 /*
