@@ -90,25 +90,24 @@ static void _TestSensor(void)
 		"senValue",	"senArray",	"utilsON"
 	};
 
-	static int16 menu_cnt_i16_;
+	int16 menu_cnt_i16 = 0;
 	const int16 kNum = TS_MEMU_NUM - 1;
 
-	menu_cnt_i16_ = 0;
 	while(SW_U)
 	{
 		// fail safety
 		// menu_cnt is not bigger than the number of function
 		// and cannot be any negative number.
-		if(menu_cnt_i16_ > kNum)		menu_cnt_i16_ = 0;
-		else if(menu_cnt_i16_ < 0)		menu_cnt_i16_ = kNum;
+		if(menu_cnt_i16 > kNum)		menu_cnt_i16 = 0;
+		else if(menu_cnt_i16 < 0)	menu_cnt_i16 = kNum;
 
-		VFDPrintf((char*)kMenuChar_[menu_cnt_i16_]);
+		VFDPrintf((char*)kMenuChar_[menu_cnt_i16]);
 
 		// entry the function
-		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16_](); }
+		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16](); }
 		// Menu count up or down
-		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_++; }
-		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_--; }
+		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16--; }
 	}
 
 	DELAY_US(SW_DELAY);
@@ -209,25 +208,24 @@ static void _CalibrateMotorParam(void)
 		"velocity",	"accel   ",	"PID     "
 	};
 
-	static int16 menu_cnt_i16_;
+	int16 menu_cnt_i16 = 0;
 	const int16 kNum = CMP_MENU_NUM - 1;
 
-	menu_cnt_i16_ = 0;
 	while(SW_U)
 	{
 		// fail safety
 		// menu_cnt is not bigger than the number of function
 		// and cannot be any negative number.
-		if(menu_cnt_i16_ > kNum)		menu_cnt_i16_ = 0;
-		else if(menu_cnt_i16_ < 0)		menu_cnt_i16_ = kNum;
+		if(menu_cnt_i16 > kNum)		menu_cnt_i16 = 0;
+		else if(menu_cnt_i16 < 0)	menu_cnt_i16 = kNum;
 
-		VFDPrintf((char*)kMenuChar_[menu_cnt_i16_]);
+		VFDPrintf((char*)kMenuChar_[menu_cnt_i16]);
 
 		// entry the function
-		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16_](); }
+		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16](); }
 		// Menu count up or down
-		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_++; }
-		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_--; }
+		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16--; }
 	}
 
 	DELAY_US(SW_DELAY);
@@ -243,6 +241,13 @@ static void _TestMotor(void)
 	while(SW_U)
 	{
 		VFDPrintf("Vel%+4ld", test_vel_i32);
+		TxPrintf("tv: %+5ld, cvl: %+5.2lf, cvr: %+5.2lf, le: %4ld re: %4ld\n", 
+			test_vel_i32,
+			_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
+			_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+			g_s_left_motor.s_qep.sample_i16,
+			g_s_right_motor.s_qep.sample_i16
+		);
 
 		if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
@@ -250,6 +255,12 @@ static void _TestMotor(void)
 		g_s_right_motor.s_speed.target_vel_q17 = test_vel_i32;
 		g_s_left_motor.s_speed.target_vel_q17 = test_vel_i32;
 	}
+	
+	g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+	g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+
+	while(g_s_left_motor.s_speed.curr_vel_q17 == _IQ17(0.0)
+		&& g_s_right_motor.s_speed.curr_vel_q17 == _IQ17(0.0));
 
 	DEACTIVATE_MOTOR;
 	
@@ -292,25 +303,24 @@ static void _TestRunning(void)
 		"mov2stop"
 	};
 
-	static int16 menu_cnt_i16_;
+	int16 menu_cnt_i16 = 0;
 	const int16 kNum = TR_MENU_NUM - 1;
 
-	menu_cnt_i16_ = 0;
 	while(SW_U)
 	{
 		// fail safety
 		// menu_cnt is not bigger than the number of function
 		// and cannot be any negative number.
-		if(menu_cnt_i16_ > kNum)		menu_cnt_i16_ = 0;
-		else if(menu_cnt_i16_ < 0)		menu_cnt_i16_ = kNum;
+		if(menu_cnt_i16 > kNum)		menu_cnt_i16 = 0;
+		else if(menu_cnt_i16 < 0)	menu_cnt_i16 = kNum;
 
-		VFDPrintf((char*)kMenuChar_[menu_cnt_i16_]);
+		VFDPrintf((char*)kMenuChar_[menu_cnt_i16]);
 
 		// entry the function
-		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16_](); }
+		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16](); }
 		// Menu count up or down
-		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_++; }
-		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16_--; }
+		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16--; }
 	}
 
 	DELAY_US(SW_DELAY);
