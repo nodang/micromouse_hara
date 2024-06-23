@@ -51,10 +51,20 @@ void Variable_Init(void)
 void main(void)
 {
 	long save_val[15] = { 0, }, cnt = 0, i = 0;
+	_iq17 test_iq17 = 0, th = 0;
 	
 	System_Init();
 	Variable_Init();
 
+
+	for(i = 0; i < 360; i++)
+	{
+		th = _IQ17mpyIQX(th, 17, _IQ23div(_IQ23(3.14), _IQ23(180.0)), 23);
+		test_iq17 = _IQ17acos(th);
+		TxPrintf("%lf\n", _IQ17toF(test_iq17));
+	}
+
+	while(1);
 // condition is FALSE -> measure the sensor data to calculate dist
 #if 1
 	Menu();

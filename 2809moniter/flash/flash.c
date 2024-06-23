@@ -56,7 +56,7 @@ void DeleteAllFlash(void)
 {
 	Uint16 Status;
 
-	Status = Flash_Erase((SECTORB | SECTORC | SECTORD), &FlashStatus);
+	Status = Flash_Erase((SECTORB | SECTORC | SECTORD | SECTORE | SECTORF | SECTORG | SECTORH), &FlashStatus);
 	while(Status != STATUS_SUCCESS);
 	TxPrintf("\n  Delete All Sector OK!!\n");
 	
@@ -78,6 +78,31 @@ void DeleteSecletFlash(void)
 	SCIx_TxChar(RcvData);
 	switch(RcvData)
 	{
+		case 'h':
+		case 'H':
+			DeleteSector = SECTORH;
+			TxPrintf("\n  Delete SectorH.\n");
+			break;
+		case 'g':
+		case 'G':
+			DeleteSector = SECTORG;
+			TxPrintf("\n  Delete SectorG.\n");
+			break;
+		case 'f':
+		case 'F':
+			DeleteSector = SECTORF;
+			TxPrintf("\n  Delete SectorF.\n");
+			break;
+		case 'e':
+		case 'E':
+			DeleteSector = SECTORE;
+			TxPrintf("\n  Delete SectorE.\n");
+			break;
+		case 'd':
+		case 'D':
+			DeleteSector = SECTORD;
+			TxPrintf("\n  Delete SectorD.\n");
+			break;
 		case 'b':
 		case 'B':
 			DeleteSector = SECTORB;
@@ -124,7 +149,8 @@ void UserFlashErase_DownloadPrm(void)
 
 	
 }
-Uint32 UserPrgAddress = (Uint32)0x3e8000;
+//Uint32 UserPrgAddress = (Uint32)0x3e8000;
+Uint32 UserPrgAddress = (Uint32)0x000000;
 void UserProgramStart(void)
 {
 	void (*UserPrg)(void) = (void(*)(void))UserPrgAddress;
