@@ -169,7 +169,7 @@ void PrintMenu(void)
 	TxPrintf("\n\n");
 	TxPrintf("========   TMS320F2809 Monitor V1.0   ========\n");	
 	TxPrintf("  M  :	Display Menu.\n");
-	TxPrintf("  A  :	Delete All Flash.( Sector B - D )\n");
+	TxPrintf("  A  :	Delete All Flash.( Sector B - H )\n");
 	TxPrintf("  O  :	Delete Select Sector Flash. ( ex. O B )\n");
 	TxPrintf("  D  :	User Sector Flash Erase & DownLoad User Program ( *.Hex )\n");
 	TxPrintf("  G  :	Go User Program\n");

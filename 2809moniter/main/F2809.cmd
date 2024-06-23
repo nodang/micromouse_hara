@@ -77,7 +77,7 @@ PAGE 0:  /* Program Memory */
          /* Memory (RAM/FLASH/OTP) blocks can be moved to PAGE1 for data allocation */
 
    /* Custom Memory Map */
-   /* USERBEGIN   : origin = 0x000000, length = 0x000002 */    /* Part of M0SARAM.  Used for "boot to Flash" Entry Point. */
+   /* USERBEGIN   : origin = 0x3D8000, length = 0x000002 */    /* Part of M0SARAM.  Used for "boot to Flash" Entry Point. */
 
    /* Monitor Memory Area */
    BEGIN       : origin = 0x3F7FF6, length = 0x000002    /* Part of FLASHA.  Used for "boot to Flash" Entry Point. */
@@ -91,7 +91,7 @@ PAGE 0:  /* Program Memory */
    MONITOR     : origin = 0x3F4000, length = 0x003F80    /* Part of FLASHA. */
 
    ROM         : origin = 0x3FF000, length = 0x000FC0    /* Part of Boot ROM. */
-   RAMM0M1     : origin = 0x000002, length = 0x0007FE    /* Part of M0SARAM & M0SARAM. */
+   RAMM0M1     : origin = 0x000000, length = 0x000800    /* Part of M0SARAM & M0SARAM. */
    RAMH0       : origin = 0x3FA000, length = 0x002000    /* Part of H0SARAM. */
 
    /* Mantory Memory */
@@ -145,9 +145,8 @@ SECTIONS
                          PAGE = 0 
    /* ramfuncs2 is in USER Program */
 
-   /* We don't use CSM Password. */
-   /* csmpasswds          : > CSM_PWL     PAGE = 0 */
-   /* csm_rsvd            : > CSM_RSVD    PAGE = 0 */
+   csmpasswds          : > CSM_PWL     PAGE = 0
+   csm_rsvd            : > CSM_RSVD    PAGE = 0
 
    /* Allocate program areas: */
    codestart           : > BEGIN     PAGE = 0   /* codestart           : > BEGIN   PAGE = 0 */

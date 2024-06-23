@@ -137,8 +137,8 @@ typedef long double     float64;
 #include "..\main\main.h"
 #include "..\main\vfd.h"
 #include "..\main\lcd.h"
+#include "..\main\flash.h"
 
-#include "..\flash\flash.h"
 #include "Val.h"
 #include "Struct.h"
 #ifdef __cplusplus

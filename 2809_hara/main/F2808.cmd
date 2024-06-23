@@ -77,12 +77,12 @@ PAGE 0:  /* Program Memory */
          /* Memory (RAM/FLASH/OTP) blocks can be moved to PAGE1 for data allocation */
 
    /* Custom Memory Map */
-   USERBEGIN   : origin = 0x000000, length = 0x000002    /* Part of M0SARAM.  Used for "boot to Flash" Entry Point. */
-   USERFLASH   : origin = 0x3D8000, length = 0x01C000    /* Part of FLASHB~H. */
+   USERBEGIN   : origin = 0x3D8000, length = 0x000002    /* Part of M0SARAM.  Used for "boot to Flash" Entry Point. */
+   USERFLASH   : origin = 0x3D8002, length = 0x01BFFE    /* Part of FLASHB~H. */
    MONITOR     : origin = 0x3F4000, length = 0x003F80    /* Part of FLASHA. */
 
    ROM         : origin = 0x3FF000, length = 0x000FC0    /* Part of Boot ROM. */
-   RAMHM0      : origin = 0x000002, length = 0x0001FE   /* Half Part of M0SARAM. */
+   RAMHM0      : origin = 0x000000, length = 0x000200   /* Half Part of M0SARAM. */
    RAML0L1H0   : origin = 0x3F8000, length = 0x004000    /* Part of L0SARAM & L1SARAM & H0SARAM. */
 
    /* Mantory Memory */
