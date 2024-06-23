@@ -56,15 +56,17 @@ void main(void)
 	System_Init();
 	Variable_Init();
 
-
+/*
 	for(i = 0; i < 360; i++)
 	{
-		th = _IQ17mpyIQX(th, 17, _IQ23div(_IQ23(3.14), _IQ23(180.0)), 23);
+		th = _IQ17cos(_IQ17mpyIQX(_IQ17(i), 17, _IQ17div(_IQ17(3.14), _IQ17(180.0)), 17));
 		test_iq17 = _IQ17acos(th);
-		TxPrintf("%lf\n", _IQ17toF(test_iq17));
+		TxPrintf("%ld, %lf, %lf\n", i, _IQ17toF(test_iq17), _IQ17toF(th));
+		DELAY_US(10000);
 	}
 
 	while(1);
+*/
 // condition is FALSE -> measure the sensor data to calculate dist
 #if 1
 	Menu();
