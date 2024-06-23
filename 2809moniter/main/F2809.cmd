@@ -91,7 +91,7 @@ PAGE 0:  /* Program Memory */
    MONITOR     : origin = 0x3F4000, length = 0x003F80    /* Part of FLASHA. */
 
    ROM         : origin = 0x3FF000, length = 0x000FC0    /* Part of Boot ROM. */
-   RAMM0M1     : origin = 0x000002, length = 0x000800    /* Part of M0SARAM & M0SARAM. */
+   RAMM0M1     : origin = 0x000002, length = 0x0007FE    /* Part of M0SARAM & M0SARAM. */
    RAMH0       : origin = 0x3FA000, length = 0x002000    /* Part of H0SARAM. */
 
    /* Mantory Memory */
