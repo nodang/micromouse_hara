@@ -41,7 +41,7 @@ static void _SensorValue(void)
 		else if(sw_cnt < 0)	sw_cnt = kNum;
 
 		VFDPrintf("%1d | %4ld", sw_cnt, _IQ17toF(g_s_sen[sw_cnt].position_q17));
-		TxPrintf("%4ld | %4ld | %4ld | %4ld | %4ld | %4ld | %4ld | %4ld\n",
+		TxPrintf(" %4u | %4u | %4u | %4u | %4u | %4u | %4u | %4u \n",
 				g_sp_sen_lbs->value_u16,
 					g_sp_sen_lfs->value_u16,
 						g_sp_sen_l45->value_u16,
@@ -290,37 +290,92 @@ static void _CalibrateMotorParam(void)
 }
 
 #define RESOLUTION_TEST_VEL	500
+#define MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT 100000
 static void _TestMotor(void)
 {
 	int32 test_vel_i32 = 0;
-
-	ACTIVATE_MOTOR;
+	_iq17 target_test_vel_q17 = _IQ17(0.0);
+	Uint32 timer_cnt_u32 = 0;
 
 	while(SW_U)
 	{
-		VFDPrintf("Vel%+4ld", test_vel_i32);
-		TxPrintf("tv: %+5ld, cvl: %+5.2lf, cvr: %+5.2lf, le: %4ld re: %4ld\n", 
-			test_vel_i32,
-			_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
-			_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
-			g_s_left_motor.s_qep.sample_i16,
-			g_s_right_motor.s_qep.sample_i16
-		);
+		if(test_vel_i32 > MAX_VELO)			test_vel_i32 = MAX_VELO;
+		else if(test_vel_i32 < MIN_VELO)	test_vel_i32 = MIN_VELO;
+	
+		VFDPrintf("Vel%5ld", test_vel_i32);
 
 		if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
+		else if(!SW_D)
+		{
+			if(timer_cnt_u32 >= MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT)
+			{
+				VFDPrintf("Cannot..");
+				TxPrintf("Cannot test now. Error was detected\n");
+			}
+			else
+			{
+				VFDPrintf("Testing.");
+				TxPrintf("Testing...\n");
 
-		g_s_right_motor.s_speed.target_vel_q17 = test_vel_i32;
-		g_s_left_motor.s_speed.target_vel_q17 = test_vel_i32;
+				timer_cnt_u32 = 0;
+				target_test_vel_q17 = _IQ17(test_vel_i32);
+				
+				g_s_right_motor.s_speed.target_vel_q17 = target_test_vel_q17;
+				g_s_left_motor.s_speed.target_vel_q17 = target_test_vel_q17;
+				
+				ACTIVATE_MOTOR;
+
+				while(g_s_left_motor.s_speed.curr_vel_q17 != target_test_vel_q17
+					&& g_s_right_motor.s_speed.curr_vel_q17 != target_test_vel_q17)
+				{
+					TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+						test_vel_i32,
+						_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
+						_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+						g_s_left_motor.s_qep.sample_i16,
+						g_s_right_motor.s_qep.sample_i16
+					);
+				
+					timer_cnt_u32++;
+
+					if(timer_cnt_u32 >= MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT)
+						break;
+				}
+
+				if(timer_cnt_u32 >= MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT)
+				{
+					VFDPrintf("Error...");
+					TxPrintf("Motor speed cannot reach target speed.\n");
+				}
+				else
+				{
+					VFDPrintf("Ending..");
+					TxPrintf("Ending...\n");
+				}
+
+				g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+				g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+
+				while(g_s_left_motor.s_speed.curr_vel_q17 != _IQ17(0.0)
+					&& g_s_right_motor.s_speed.curr_vel_q17 != _IQ17(0.0))
+				{			
+					TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+						test_vel_i32,
+						_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
+						_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+						g_s_left_motor.s_qep.sample_i16,
+						g_s_right_motor.s_qep.sample_i16
+					);
+				}
+
+				DEACTIVATE_MOTOR;
+
+				VFDPrintf("TestOver");
+				TxPrintf("Test is over.\n");
+			}
+		}
 	}
-	
-	g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
-	g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
-
-	while(g_s_left_motor.s_speed.curr_vel_q17 == _IQ17(0.0)
-		&& g_s_right_motor.s_speed.curr_vel_q17 == _IQ17(0.0));
-
-	DEACTIVATE_MOTOR;
 	
 	DELAY_US(SW_DELAY);
 }
@@ -414,7 +469,7 @@ static void _RunFunc(void)
 	};
 
 	static const char *kMenuChar_[] = {
-		"  SEARCH", "FAST RUN"
+		"  SEARCH", "    FAST"
 	};
 
 	int16 menu_cnt_i16 = 0;
@@ -448,7 +503,7 @@ static void _CalibrateParamFunc(void)
 	};
 
 	static const char *kMenuChar_[] = {
-		"CAL  sen", "CAL  mot", "CAL  run"
+		"C SENSOR", "C  MOTOR", "C    RUN"
 	};
 
 	int16 menu_cnt_i16 = 0;
@@ -482,7 +537,7 @@ static void _TestFunc(void)
 	};
 
 	static const char *kMenuChar_[] = {
-		"TEST sen", "TEST mot", "TEST run", "TESTalgo"
+		"T SENSOR", "T  MOTOR", "T    RUN", "T   ALGO"
 	};
 	
 	int16 menu_cnt_i16 = 0;
@@ -521,7 +576,7 @@ void Menu(void)
 	};
 
 	const char *kMenuChar_[] = {
-		"RUN	 ", "CAL	 ", "TEST	 "
+		"RUN     ", "CAL     ", "TEST    "
 	};
 
 	static int16 menu_cnt_i16_ = 0;
