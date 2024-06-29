@@ -79,13 +79,20 @@ PAGE 0:  /* Program Memory */
    /* Custom Memory Map */
    USERBEGIN   : origin = 0x3D8000, length = 0x000002    /* Part of M0SARAM.  Used for "boot to Flash" Entry Point. */
    USERFLASH   : origin = 0x3D8002, length = 0x01BFFE    /* Part of FLASHB~H. */
+   MONRBEGIN   : origin = 0x3F7FF6, length = 0x000002    /* Part of FLASHA.  Used for "boot to Flash" Entry Point. */
    MONITOR     : origin = 0x3F4000, length = 0x003F80    /* Part of FLASHA. */
 
    ROM         : origin = 0x3FF000, length = 0x000FC0    /* Part of Boot ROM. */
-   RAMHM0      : origin = 0x000000, length = 0x000200   /* Half Part of M0SARAM. */
+   RAMHM0      : origin = 0x000000, length = 0x000200    /* Half Part of M0SARAM. */
    RAML0L1H0   : origin = 0x3F8000, length = 0x004000    /* Part of L0SARAM & L1SARAM & H0SARAM. */
 
    /* Mantory Memory */
+   PIE_RSVD1   : origin = 0x000800, length = 0x005800    /* Don't Modify. */
+   PIE_RSVD2   : origin = 0x006000, length = 0x002000    /* Don't Modify. */
+   RSVD1       : origin = 0x00C000, length = 0x3CB800    /* Don't Modify. */
+   RSVD2       : origin = 0x3D7C00, length = 0x000400    /* Don't Modify. */
+   RSVD3       : origin = 0x3FC000, length = 0x003000    /* Don't Modify. */
+   
    OTP         : origin = 0x3D7800, length = 0x000400
 
    CSM_RSVD    : origin = 0x3F7F80, length = 0x000076    /* Part of FLASHA.  Program with all 0x0000 when CSM is in use. */
@@ -137,41 +144,41 @@ SECTIONS
                    per access (boot ROM is 1 wait).
       IQmathTablesRam is used by IQasin, IQacos, and IQexp
    */
-   IQmath              : > USERFLASH   PAGE = 0                  /* Math Code */
-   IQmathTables        : > ROM         PAGE = 0, TYPE = NOLOAD   /* Math Tables In ROM */
-   IQmathTablesRam     : > RAML0L1H0   PAGE = 0
+   IQmath              : > USERFLASH	PAGE = 0                  /* Math Code */
+   IQmathTables        : > ROM			PAGE = 0, TYPE = NOLOAD   /* Math Tables In ROM */
+   IQmathTablesRam     : > RAML0L1H0	PAGE = 0
 
    /* We don't use CSM Password. */
    /* csmpasswds          : > CSM_PWL     PAGE = 0 */
    /* csm_rsvd            : > CSM_RSVD    PAGE = 0 */
 
    /* Allocate program areas: */
-   codestart           : > USERBEGIN   PAGE = 0   /* codestart           : > BEGIN   PAGE = 0 */
-   .text               : > USERFLASH   PAGE = 0
-   .cinit              : > USERFLASH   PAGE = 0
-   .pinit              : > USERFLASH   PAGE = 0
+   codestart           : > USERBEGIN	PAGE = 0   /* codestart           : > BEGIN   PAGE = 0 */
+   .text               : > USERFLASH	PAGE = 0
+   .cinit              : > USERFLASH	PAGE = 0
+   .pinit              : > USERFLASH	PAGE = 0
 
    /* Allocate uninitalized data sections: */
    .stack              : > RAMHM0M1   	PAGE = 1
-   .heap			        : > RAML0L1H0	PAGE = 0
+   .heap			   : > RAML0L1H0	PAGE = 0
    .ebss               : > RAML0L1H0	PAGE = 0
-   .esysmem            : > RAML0L1H0   PAGE = 0
-   .sysmem			     : > RAML0L1H0	PAGE = 0
+   .sysmem			   : > RAML0L1H0	PAGE = 0
+   .esysmem            : > RAML0L1H0	PAGE = 0
 
    /* Initalized sections go in Flash */
    /* For SDFlash to program these, they must be allocated to page 0 */
-   .econst             : > USERFLASH   PAGE = 0
-   .switch             : > USERFLASH   PAGE = 0      
+   .econst             : > USERFLASH	PAGE = 0
+   .switch             : > USERFLASH	PAGE = 0      
 
    /* .reset is a standard section used by the compiler.  It contains the */ 
    /* the address of the start of _c_int00 for C Code.   /*
    /* When using the boot ROM this section and the CPU vector */
    /* table is not needed.  Thus the default type is set here to  */
    /* DSECT  */ 
-   .reset              : > RESET,      PAGE = 0, TYPE = DSECT
-   vectors             : > VECTORS     PAGE = 0, TYPE = DSECT
+   .reset              : > RESET		PAGE = 0, TYPE = DSECT
+   vectors             : > VECTORS		PAGE = 0, TYPE = DSECT
 
-   VFD_FONT			     : > USERFLASH	PAGE = 0
+   VFD_FONT			   : > USERFLASH	PAGE = 0
 }
 
 /*
