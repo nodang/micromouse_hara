@@ -16,32 +16,74 @@
 #include "Menu.h"
 
 //===========================================================================//
-//	Static
+//	Static Function of Low Level
 //===========================================================================//
 
 static void _CalibrateSensorValue(void)
 {
-	//set_sensor();
+	set_sensor();
 	
-	//VFDPrintf("made yet");
-	while(1)
-	{
-		VFDPrintf("%1u %1u %1u %1u", SW_U, SW_D, SW_L, SW_R);
-	}
-	
-	DELAY_US(250000);
+	VFDPrintf("made yet");
 }
 
+#define SEN_NUM	8
 static void _SensorValue(void)
 {
-	VFDPrintf("made yet");
-	DELAY_US(250000);
+	int16 sw_cnt = 0;
+	const int16 kNum = SEN_NUM - 1;
+
+	g_s_flags.sensor_ir_b = ON;
+	StartCpuTimer2();
+
+	while(SW_U)
+	{
+		if(sw_cnt > kNum)	sw_cnt = 0;
+		else if(sw_cnt < 0)	sw_cnt = kNum;
+
+		VFDPrintf("%1d | %4ld", sw_cnt, _IQ17toF(g_s_sen[sw_cnt].position_q17));
+		TxPrintf("%4ld | %4ld | %4ld | %4ld | %4ld | %4ld | %4ld | %4ld\n",
+				g_sp_sen_lbs->value_u16,
+					g_sp_sen_lfs->value_u16,
+						g_sp_sen_l45->value_u16,
+							g_sp_sen_lf->value_u16,
+											g_sp_sen_rf->value_u16,
+												g_sp_sen_r45->value_u16,
+													g_sp_sen_rfs->value_u16,
+														g_sp_sen_rbs->value_u16);
+	
+		if(!SW_R)		{ DELAY_US(SW_DELAY);	sw_cnt++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	sw_cnt--; }
+	}
+
+	StopCpuTimer2();
+	g_s_flags.sensor_ir_b = OFF;
+	
+	DELAY_US(SW_DELAY);
 }
 
+#define DIST_CRETIREA	_IQ17(90.0)
 static void _SensorArray(void)
 {
-	VFDPrintf("made yet");
-	DELAY_US(250000);
+	g_s_flags.sensor_ir_b = ON;
+	StartCpuTimer2();
+
+	while(SW_U)
+	{
+		VFDPrintf("%1u%1u%1u%1u%1u%1u%1u%1u",
+				g_sp_sen_lbs->position_q17 > DIST_CRETIREA,
+					g_sp_sen_lfs->position_q17 > DIST_CRETIREA,
+						g_sp_sen_l45->position_q17 > DIST_CRETIREA,
+							g_sp_sen_lf->position_q17 > DIST_CRETIREA,
+								g_sp_sen_rf->position_q17 > DIST_CRETIREA,
+									g_sp_sen_r45->position_q17 > DIST_CRETIREA,
+										g_sp_sen_rfs->position_q17 > DIST_CRETIREA,
+											g_sp_sen_rbs->position_q17 > DIST_CRETIREA);
+	}
+
+	StopCpuTimer2();
+	g_s_flags.sensor_ir_b = OFF;
+	
+	DELAY_US(SW_DELAY);
 }
 
 static void _Utils(void)
@@ -55,8 +97,16 @@ static void _Utils(void)
 	{
 		//TxPrintf("%lu, %lu, %u, %u\n", cycle_cnt, buzz_on_cnt, cycle_flag, buzz_on_flag);
 		// Utils turn on a cycle every 0.5 seconds 
-		if(cycle_cnt < 500000)	{ cycle_cnt++; }
-		else						{ cycle_cnt = 0; cycle_flag = !cycle_flag; buzz_on_flag = 0; }
+		if(cycle_cnt < 500000)	
+		{
+			cycle_cnt++;
+		}
+		else
+		{
+			cycle_cnt = 0;
+			cycle_flag = !cycle_flag;
+			buzz_on_flag = 0;
+		}
 
 		if(!cycle_flag)
 		{
@@ -70,8 +120,16 @@ static void _Utils(void)
 		}
 
 		// Buzz turns on for 0.05 seconds
-		if(buzz_on_flag == 1 && buzz_on_cnt < 25000)	{ buzz_on_cnt++; }
-		else if(buzz_on_flag == 1)						{ BUZZ_OFF; buzz_on_cnt = 0; buzz_on_flag = 2; }
+		if(buzz_on_flag == 1 && buzz_on_cnt < 25000)	
+		{
+			buzz_on_cnt++;
+		}
+		else if(buzz_on_flag == 1)
+		{
+			BUZZ_OFF;
+			buzz_on_cnt = 0;
+			buzz_on_flag = 2;
+		}
 	}
 
 	LED_F_OFF; LED_R_OFF; LED_L_OFF; BUZZ_OFF;
@@ -332,31 +390,138 @@ static void _TestAlgorithm(void)
 	DELAY_US(250000);
 }
 
-static void _Run(void)
+static void _SearchRun(void)
+{	
+	VFDPrintf("made yet");
+	DELAY_US(250000);
+}
+
+static void _FastRun(void)
 {	
 	VFDPrintf("made yet");
 	DELAY_US(250000);
 }
 
 //===========================================================================//
-//	Extern
+//	Static Function of High Level : Group of Consistant Functions
 //===========================================================================//
 
-#define MENU_NUM	8
-void Menu(void)
+#define RUNFUNC_MENU_NUM	2
+static void _RunFunc(void)
 {
 	static void (*menu_func_[])() = {
-		_CalibrateSensorValue,	_TestSensor,
-		_CalibrateMotorParam,	_TestMotor,
-		_CalibrateRunningParam,	_TestRunning,
-		_TestAlgorithm,			_Run
+		_SearchRun, _FastRun
 	};
 
 	static const char *kMenuChar_[] = {
-		"cal  SEN",		"test SEN",
-		"cal  MOT",		"test MOT",
-		"cal  RUN",		"test RUN",
-		"testALGO",		"     RUN"
+		"  SEARCH", "FAST RUN"
+	};
+
+	int16 menu_cnt_i16 = 0;
+	const int16 kNum = RUNFUNC_MENU_NUM - 1;
+
+	while(SW_U)
+	{
+		// fail safety
+		// menu_cnt is not bigger than the number of function
+		// and cannot be any negative number.
+		if(menu_cnt_i16 > kNum)		menu_cnt_i16 = 0;
+		else if(menu_cnt_i16 < 0)	menu_cnt_i16 = kNum;
+
+		VFDPrintf((char*)kMenuChar_[menu_cnt_i16]);
+
+		// entry the function
+		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16](); }
+		// Menu count up or down
+		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16--; }
+	}
+
+	DELAY_US(SW_DELAY);
+}
+
+#define CALFUNC_MENU_NUM	3
+static void _CalibrateParamFunc(void)
+{
+	static void (*menu_func_[])() = {
+		_CalibrateSensorValue, _CalibrateMotorParam, _CalibrateRunningParam
+	};
+
+	static const char *kMenuChar_[] = {
+		"CAL  sen", "CAL  mot", "CAL  run"
+	};
+
+	int16 menu_cnt_i16 = 0;
+	const int16 kNum = CALFUNC_MENU_NUM - 1;
+
+	while(SW_U)
+	{
+		// fail safety
+		// menu_cnt is not bigger than the number of function
+		// and cannot be any negative number.
+		if(menu_cnt_i16 > kNum)		menu_cnt_i16 = 0;
+		else if(menu_cnt_i16 < 0)	menu_cnt_i16 = kNum;
+
+		VFDPrintf((char*)kMenuChar_[menu_cnt_i16]);
+
+		// entry the function
+		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16](); }
+		// Menu count up or down
+		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16--; }
+	}
+
+	DELAY_US(SW_DELAY);
+}
+
+#define TESTFUNC_MENU_NUM	4
+static void _TestFunc(void)
+{
+	static void (*menu_func_[])() = {
+		_TestSensor, _TestMotor, _TestRunning, _TestAlgorithm
+	};
+
+	static const char *kMenuChar_[] = {
+		"TEST sen", "TEST mot", "TEST run", "TESTalgo"
+	};
+	
+	int16 menu_cnt_i16 = 0;
+	const int16 kNum = TESTFUNC_MENU_NUM - 1;
+
+	while(SW_U)
+	{
+		// fail safety
+		// menu_cnt is not bigger than the number of function
+		// and cannot be any negative number.
+		if(menu_cnt_i16 > kNum)		menu_cnt_i16 = 0;
+		else if(menu_cnt_i16 < 0)	menu_cnt_i16 = kNum;
+
+		VFDPrintf((char*)kMenuChar_[menu_cnt_i16]);
+
+		// entry the function
+		if(!SW_D)	{ DELAY_US(SW_DELAY);	menu_func_[menu_cnt_i16](); }
+		// Menu count up or down
+		else if(!SW_R)	{ DELAY_US(SW_DELAY);	menu_cnt_i16++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	menu_cnt_i16--; }
+	}
+
+	DELAY_US(SW_DELAY);
+}
+
+//===========================================================================//
+//	Extern
+//===========================================================================//
+
+
+#define MENU_NUM	3
+void Menu(void)
+{
+	static void (*menu_func_[])() = {
+		_RunFunc, _CalibrateParamFunc, _TestFunc
+	};
+
+	const char *kMenuChar_[] = {
+		"RUN	 ", "CAL	 ", "TEST	 "
 	};
 
 	static int16 menu_cnt_i16_ = 0;
