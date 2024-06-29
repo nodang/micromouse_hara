@@ -113,33 +113,25 @@ __VARIABLE_EXT__ Flags g_s_flags;
 typedef volatile struct
 {
 	Uint16	value_u16;
-
-	_iq17	position_q17,
-			position_yet_q17,
-			position_diff_q17,
-			high_coefficient_q17,
-			low_coefficient_q17,
-			max_val_q17,
-			min_val_q17,
-			mid_val_q17,
-			lpf_out_data_yet_q17,
+				
+	_iq17	lpf_out_data_yet_q17,
 			lpf_out_data_q17,
 			lpf_in_data_q17,
 			lpf_out_data_diff_q17,
 			lpf_in_data_diff_q17,
 			lpf_in_data_diff_yet_q17;
+
+	_iq17	dist_q17,
+			dist_yet_q17,
+			dist_diff_q17,
+			high_coefficient_q17,
+			low_coefficient_q17,
+			max_val_q17,
+			min_val_q17,
+			mid_val_q17;
 }SensorVariable;
 
 __VARIABLE_EXT__ SensorVariable	g_s_sen[8];
-
-__VARIABLE_EXT__ SensorVariable	*g_sp_sen_rbs,
-								*g_sp_sen_rfs,
-								*g_sp_sen_r45,
-								*g_sp_sen_rf,
-								*g_sp_sen_lf,
-								*g_sp_sen_l45,
-								*g_sp_sen_lfs,
-								*g_sp_sen_lbs;
 
 __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 									g_sci_on_u16;

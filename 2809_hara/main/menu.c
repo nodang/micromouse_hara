@@ -40,16 +40,16 @@ static void _SensorValue(void)
 		if(sw_cnt > kNum)	sw_cnt = 0;
 		else if(sw_cnt < 0)	sw_cnt = kNum;
 
-		VFDPrintf("%1d | %4ld", sw_cnt, _IQ17toF(g_s_sen[sw_cnt].position_q17));
+		VFDPrintf("%1d | %4ld", sw_cnt, _IQ17toF(g_s_sen[sw_cnt].dist_q17));
 		TxPrintf(" %4u | %4u | %4u | %4u | %4u | %4u | %4u | %4u \n",
-				g_sp_sen_lbs->value_u16,
-					g_sp_sen_lfs->value_u16,
-						g_sp_sen_l45->value_u16,
-							g_sp_sen_lf->value_u16,
-											g_sp_sen_rf->value_u16,
-												g_sp_sen_r45->value_u16,
-													g_sp_sen_rfs->value_u16,
-														g_sp_sen_rbs->value_u16);
+				LBS.value_u16,
+					LFS.value_u16,
+						L45.value_u16,
+							LF.value_u16,
+									RF.value_u16,
+										R45.value_u16,
+											RFS.value_u16,
+												RBS.value_u16);
 	
 		if(!SW_R)		{ DELAY_US(SW_DELAY);	sw_cnt++; }
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	sw_cnt--; }
@@ -70,14 +70,14 @@ static void _SensorArray(void)
 	while(SW_U)
 	{
 		VFDPrintf("%1u%1u%1u%1u%1u%1u%1u%1u",
-				g_sp_sen_lbs->position_q17 > DIST_CRETIREA,
-					g_sp_sen_lfs->position_q17 > DIST_CRETIREA,
-						g_sp_sen_l45->position_q17 > DIST_CRETIREA,
-							g_sp_sen_lf->position_q17 > DIST_CRETIREA,
-								g_sp_sen_rf->position_q17 > DIST_CRETIREA,
-									g_sp_sen_r45->position_q17 > DIST_CRETIREA,
-										g_sp_sen_rfs->position_q17 > DIST_CRETIREA,
-											g_sp_sen_rbs->position_q17 > DIST_CRETIREA);
+				LBS.dist_q17 > DIST_CRETIREA,
+					LFS.dist_q17 > DIST_CRETIREA,
+						L45.dist_q17 > DIST_CRETIREA,
+							LF.dist_q17 > DIST_CRETIREA,
+								RF.dist_q17 > DIST_CRETIREA,
+									R45.dist_q17 > DIST_CRETIREA,
+										RFS.dist_q17 > DIST_CRETIREA,
+											RBS.dist_q17 > DIST_CRETIREA);
 	}
 
 	StopCpuTimer2();

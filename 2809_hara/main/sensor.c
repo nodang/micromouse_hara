@@ -80,15 +80,6 @@ void init_sensor(void)
 {
 	memset((void *)g_s_sen, 0x00, sizeof(g_s_sen));
 
-	g_sp_sen_rbs = &g_s_sen[0];
-	g_sp_sen_rfs = &g_s_sen[1];
-	g_sp_sen_r45 = &g_s_sen[2];
-	g_sp_sen_rf = &g_s_sen[3];
-	g_sp_sen_lf = &g_s_sen[4];
-	g_sp_sen_l45 = &g_s_sen[5];
-	g_sp_sen_lfs = &g_s_sen[6];
-	g_sp_sen_lbs = &g_s_sen[7];
-
 	g_sensor_num_u16 = 0;
 }
 
@@ -220,7 +211,9 @@ interrupt void adc_ISR(void)
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 
 	if(ADC_channel_cnt == 0)
+	{
 		GpioDataRegs.GPACLEAR.all = (sensor_shoot_[g_sensor_num_u16] | sensor_shoot_[SEN_NUM_R]);
+	}
 	
 	sen_sum0_u32 +=	AdcMirror.ADCRESULT0;
 	sen_sum0_u32 +=	AdcMirror.ADCRESULT1;

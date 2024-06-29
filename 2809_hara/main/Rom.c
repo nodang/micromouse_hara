@@ -35,48 +35,42 @@ typedef enum {
 
 void WriteSensorData()
 {
-	Uint16	i = 0,
-			write_arr[kSensorArraySize] = { 0, };
+	Uint16	i = 0, write_arr[kSensorArraySize] = { 0, };
 
 	SpiWriteRom((Uint16)kSensorPage, 0, (Uint16)kSensorArraySize, write_arr);
 }
 
 void ReadSensorData()
 {
-	Uint16	i = 0,
-			read_arr[kSensorArraySize] = { 0, };
-
+	Uint16	i = 0, read_arr[kSensorArraySize] = { 0, };
+	
 	SpiReadRom((Uint16)kSensorPage, 0, (Uint16)kSensorArraySize, read_arr);
 }
 
 void WriteMotorData()
 {
-	Uint16	i = 0,
-			write_arr[kMotorArraySize] = { 0, };
+	Uint16	i = 0, write_arr[kSensorArraySize] = { 0, };
 
 	SpiWriteRom((Uint16)kMotorPage, 0, (Uint16)kMotorArraySize, write_arr);
 }
 
 void ReadMotorData()
 {
-	Uint16	i = 0,
-			read_arr[kMotorArraySize] = { 0, };
+	Uint16	i = 0, read_arr[kSensorArraySize] = { 0, };
 
 	SpiReadRom((Uint16)kSensorPage, 0, (Uint16)kMotorArraySize, read_arr);
 }
 
 void WriteRunningData()
 {
-	Uint16	i = 0,
-			write_arr[kRunArraySize] = { 0, };
+	Uint16	i = 0, write_arr[kSensorArraySize] = { 0, };
 
 	SpiWriteRom((Uint16)kRunPage, 0, (Uint16)kRunArraySize, write_arr);
 }
 
 void ReadRunningData()
 {
-	Uint16	i = 0,
-			read_arr[kRunArraySize] = { 0, };
+	Uint16	i = 0, read_arr[kSensorArraySize] = { 0, };
 
 	SpiReadRom((Uint16)kSensorPage, 0, (Uint16)kRunArraySize, read_arr);
 }
