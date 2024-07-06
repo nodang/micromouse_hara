@@ -90,9 +90,10 @@
 
 typedef volatile struct
 {
-	Uint16	sensor_ir_b:1,
-			motor_pwm_b:1,
-			adj_pos_b:1;
+	Uint16	sensor_ir_b	:1,
+			est_dist_b	:1,
+			motor_pwm_b	:1,
+			adj_pos_b	:1;
 }Flags;
 
 __VARIABLE_EXT__ Flags g_s_flags;
@@ -112,15 +113,38 @@ __VARIABLE_EXT__ Flags g_s_flags;
 
 typedef volatile struct
 {
-	Uint16	value_u16;
-				
-	_iq17	lpf_out_data_yet_q17,
-			lpf_out_data_q17,
-			lpf_in_data_q17,
-			lpf_out_data_diff_q17,
-			lpf_in_data_diff_q17,
-			lpf_in_data_diff_yet_q17;
+	_iq17	input_q17,
+			input_previous_q17,
+			output_previous_q17,
+			output_q17;			// filtered data
+			
+} SensorFilterVariable;
 
+typedef volatile struct
+{
+	_iq17	a0, a1, a2,		// gain
+			x0, x1, x2,		// sensor data set
+			y0, y1, y2,		// distance set
+			x;	// input
+} NewtonInterpolationVariable;
+
+typedef volatile struct
+{
+	NewtonInterpolationVariable s_formula;
+	SensorFilterVariable s_filter;
+
+	_iq17 value_q17;	// output
+	
+} DistanceEstimationVariable;
+
+typedef volatile struct
+{
+	Uint16	value_u16;
+
+	SensorFilterVariable	s_lpf,
+							s_lpf_diff;
+	DistanceEstimationVariable	s_dist;
+/*
 	_iq17	dist_q17,
 			dist_yet_q17,
 			dist_diff_q17,
@@ -129,6 +153,7 @@ typedef volatile struct
 			max_val_q17,
 			min_val_q17,
 			mid_val_q17;
+*/
 }SensorVariable;
 
 __VARIABLE_EXT__ SensorVariable	g_s_sen[8];
