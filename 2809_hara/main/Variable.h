@@ -118,7 +118,7 @@ typedef volatile struct
 			output_previous_q17,
 			output_q17;			// filtered data
 			
-} SensorFilterVariable;
+}SensorFilterVariable;
 
 typedef volatile struct
 {
@@ -126,7 +126,7 @@ typedef volatile struct
 			x0, x1, x2,		// sensor data set
 			y0, y1, y2,		// distance set
 			x;	// input
-} NewtonInterpolationVariable;
+}NewtonInterpolationVariable;
 
 typedef volatile struct
 {
@@ -135,7 +135,7 @@ typedef volatile struct
 
 	_iq17 value_q17;	// output
 	
-} DistanceEstimationVariable;
+}DistanceEstimationVariable;
 
 typedef volatile struct
 {

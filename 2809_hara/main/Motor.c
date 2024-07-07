@@ -18,7 +18,7 @@
 #include "Motor.h"
 
 #define ENCODER_RESOLUTION		1024
-#define ENCODER_RESOLUTION_x2	2024
+#define ENCODER_RESOLUTION_x2	2048
 
 #define MAX_I_TERM		_IQ17(5.0)
 #define MIN_I_TERM		-MAX_I_TERM //_IQ17(-5.0)
@@ -71,6 +71,7 @@ static void _init_motor_structure(MotorVariable *sp_motor)
 
 	sp_motor->s_speed.accel_q15 = _IQ15(6500.0);
 	sp_motor->s_speed.target_vel_q17 = _IQ17(0.0);
+	sp_motor->s_adj.adj_ratio_q17 = _IQ17(1.0);
 }
 
 void init_motor(void)
@@ -110,6 +111,7 @@ interrupt void motor_timer2_ISR(void)
 		_sp_r_qep->sample_i16 = (int16)_sp_r_qep->sample_u16 - ENCODER_RESOLUTION_x2;
 	else 
 		_sp_r_qep->sample_i16 = (int16)_sp_r_qep->sample_u16;
+	_sp_r_qep->sample_i16 = -_sp_r_qep->sample_i16;
 
 	if(_sp_l_qep->sample_u16 >= ENCODER_RESOLUTION)
 		_sp_l_qep->sample_i16 = (int16)_sp_l_qep->sample_u16 - ENCODER_RESOLUTION_x2;
@@ -138,8 +140,10 @@ interrupt void motor_timer2_ISR(void)
 	_sp_l_dist->remaining_q17 = _sp_l_dist->target_q17 - _sp_l_dist->gone_q17;
 
 	// convert to the absolute value
-	CONV2ABS_IQ17(_sp_r_dist->remaining_q17);
-	CONV2ABS_IQ17(_sp_l_dist->remaining_q17);
+	if(_sp_r_dist->remaining_q17 < _IQ17(0.0))
+		_sp_r_dist->remaining_q17 = -_sp_r_dist->remaining_q17;
+	if(_sp_l_dist->remaining_q17 < _IQ17(0.0))
+		_sp_l_dist->remaining_q17 = -_sp_l_dist->remaining_q17;
 
 	// 펄스당 속도와 QEP를 곱해 현재의 속도를 구한다.
 	// calculate current velocity. multiply the sample by velocity per a pulse
@@ -148,11 +152,11 @@ interrupt void motor_timer2_ISR(void)
 	
 	// 남은 거리 확인 후 목표 감속 속도 설정
 	// if remainging distance over the stop point set then set target velocity to deceleration target velocity
-	if(_sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17)
+	if(_sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17 & FALSE)
 	{
 		_sp_r_speed->target_vel_q17 = _sp_r_speed->decel_vel_q17;
 	}
-	if(_sp_l_dist->remaining_q17 <= _sp_l_dist->decel_point_q17)
+	if(_sp_l_dist->remaining_q17 <= _sp_l_dist->decel_point_q17 & FALSE)
 	{
 		_sp_l_speed->target_vel_q17 = _sp_l_speed->decel_vel_q17;
 	}
@@ -266,10 +270,11 @@ interrupt void motor_timer2_ISR(void)
 		{
 			if(g_s_right_motor.pid_output_q17 < MIN_PID_OUT)
 				g_s_right_motor.pid_output_q17 = MIN_PID_OUT;
+			g_s_right_motor.pid_output_q17 = -g_s_right_motor.pid_output_q17;
 
 			EPwm1Regs.AQCTLA.bit.ZRO = AQ_SET;
 			EPwm1Regs.AQCTLB.bit.ZRO = AQ_CLEAR;
-			EPwm1Regs.CMPA.half.CMPA = (Uint16)(_IQ17mpyIQX(-g_s_right_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
+			EPwm1Regs.CMPA.half.CMPA = (Uint16)(_IQ17mpyIQX(g_s_right_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 		
 		if( g_s_left_motor.pid_output_q17 >= _IQ17(0.0) )
@@ -285,10 +290,11 @@ interrupt void motor_timer2_ISR(void)
 		{
 			if(g_s_left_motor.pid_output_q17 < MIN_PID_OUT )
 				g_s_left_motor.pid_output_q17 = MIN_PID_OUT;
+			g_s_left_motor.pid_output_q17 = -g_s_left_motor.pid_output_q17;
 			
 			EPwm2Regs.AQCTLA.bit.ZRO = AQ_CLEAR;
 			EPwm2Regs.AQCTLB.bit.ZRO = AQ_SET;
-			EPwm2Regs.CMPB = (Uint16)(_IQ17mpyIQX(-g_s_left_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
+			EPwm2Regs.CMPB = (Uint16)(_IQ17mpyIQX(g_s_left_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 	}
 #endif

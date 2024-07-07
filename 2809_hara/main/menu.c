@@ -290,7 +290,7 @@ static void _CalibrateMotorParam(void)
 }
 
 #define RESOLUTION_TEST_VEL	500
-#define MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT 100000
+#define MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT 1000
 static void _TestMotor(void)
 {
 	int32 test_vel_i32 = 0;
@@ -329,8 +329,12 @@ static void _TestMotor(void)
 				while(g_s_left_motor.s_speed.curr_vel_q17 != target_test_vel_q17
 					&& g_s_right_motor.s_speed.curr_vel_q17 != target_test_vel_q17)
 				{
-					TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+					TxPrintf("tv: %5ld, tvl: %5.2lf, tvr: %5.2lf, nvl: %5.2lf, nvr: %5.2lf, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
 						test_vel_i32,
+						_IQ17toF(g_s_right_motor.s_speed.target_vel_q17),
+						_IQ17toF(g_s_right_motor.s_speed.target_vel_q17),
+						_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),
+						_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),
 						_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
 						_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
 						g_s_left_motor.s_qep.sample_i16,

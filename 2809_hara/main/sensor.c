@@ -237,9 +237,9 @@ interrupt void sensor_timer0_ISR(void)
 		GpioDataRegs.GPASET.all = (sensor_shoot_[SEN_NUM_R] | sensor_shoot_[SEN_NUM_L]);
 	}
 
-	AdcRegs.ADCCHSELSEQ1.all = sensor_seq_[g_sensor_num_u16];
+	AdcRegs.ADCCHSELSEQ1.all = sensor_seq_[SEN_NUM_R];
 	AdcRegs.ADCCHSELSEQ2.all = sensor_seq_[SEN_NUM_L];
-	AdcRegs.ADCCHSELSEQ3.all = sensor_seq_[g_sensor_num_u16];
+	AdcRegs.ADCCHSELSEQ3.all = sensor_seq_[SEN_NUM_R];
 	AdcRegs.ADCCHSELSEQ4.all = sensor_seq_[SEN_NUM_L];
 
 	AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
