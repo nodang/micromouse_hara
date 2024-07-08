@@ -35,13 +35,6 @@
 #define PULSE_TO_VEL	_IQ26(18.407769454627695)	
 // 바퀴지름 *PHI[75.398223686155037723103441198708]/(512*4)/기어비(4.)/0.0005
 
-#define CALC_DIST(V,W,R)	_IQ17mpy(_IQ17mpy(V, R), W)
-
-#define CONV2ABS_IQ17(value)	do {						\
-									if(value < _IQ17(0.0))	\
-										value = -value;		\
-								} while(0)
-
 enum RunType {
 	STR = 0x00,
 
@@ -56,10 +49,17 @@ enum RunType {
 	TL180 = 0x80
 };
 
-static QEPVariable *_sp_r_qep, *_sp_l_qep;
-static DistanceVariable *_sp_r_dist, *_sp_l_dist;
-static SpeedVariable *_sp_r_speed, *_sp_l_speed;
-static AdjustPositionVariable *_sp_r_msc, *_sp_l_msc;
+static QEPVariable *_sp_r_qep = &g_s_right_motor.s_qep;
+static QEPVariable *_sp_l_qep = &g_s_left_motor.s_qep;
+
+static DistanceVariable *_sp_r_dist = &g_s_right_motor.s_dist;
+static DistanceVariable *_sp_l_dist = &g_s_left_motor.s_dist;
+
+static SpeedVariable *_sp_r_speed = &g_s_right_motor.s_speed;
+static SpeedVariable *_sp_l_speed = &g_s_left_motor.s_speed;
+
+static AdjustPositionVariable *_sp_r_msc = &g_s_right_motor.s_adj;
+static AdjustPositionVariable *_sp_l_msc = &g_s_left_motor.s_adj;
 
 static void _init_motor_structure(MotorVariable *sp_motor)
 {
@@ -78,18 +78,6 @@ void init_motor(void)
 {
 	_init_motor_structure(&g_s_right_motor);
 	_init_motor_structure(&g_s_left_motor);
-
-	 _sp_r_qep = &g_s_right_motor.s_qep;
-	 _sp_l_qep = &g_s_left_motor.s_qep;
-
-	_sp_r_dist = &g_s_right_motor.s_dist;
-	_sp_l_dist = &g_s_left_motor.s_dist;
-
-	_sp_r_speed = &g_s_right_motor.s_speed;
-	_sp_l_speed = &g_s_left_motor.s_speed;
-
-	_sp_r_msc = &g_s_right_motor.s_adj;
-	_sp_l_msc = &g_s_left_motor.s_adj;
 
 	memset((void *)&g_s_cmd_vel, 0x00, sizeof(CommandVelocityVariable));
 }
@@ -152,11 +140,11 @@ interrupt void motor_timer2_ISR(void)
 	
 	// 남은 거리 확인 후 목표 감속 속도 설정
 	// if remainging distance over the stop point set then set target velocity to deceleration target velocity
-	if(_sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17 & FALSE)
+	if(_sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17 && _sp_r_speed->decel_b == ON)
 	{
 		_sp_r_speed->target_vel_q17 = _sp_r_speed->decel_vel_q17;
 	}
-	if(_sp_l_dist->remaining_q17 <= _sp_l_dist->decel_point_q17 & FALSE)
+	if(_sp_l_dist->remaining_q17 <= _sp_l_dist->decel_point_q17	&& _sp_l_speed->decel_b == ON)
 	{
 		_sp_l_speed->target_vel_q17 = _sp_l_speed->decel_vel_q17;
 	}
@@ -298,6 +286,7 @@ interrupt void motor_timer2_ISR(void)
 		}
 	}
 #endif
+	g_timer_500u_u32++;
 #if 0
 	g_u16motortic++;
 	gDiffAdjCnt++;
@@ -316,15 +305,22 @@ interrupt void motor_timer2_ISR(void)
 // 동작 후 정차
 void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 {
+	_iq17 temp0, temp1;
+
 	StopCpuTimer2();
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
+
+	temp0 = (_sp_l_speed->curr_vel_q17 + _sp_r_speed->curr_vel_q17) >> 1;
+	temp1 = (tar_vel + temp0) >> 1;
+	temp1 = _IQ17div(temp1, temp0); 
 	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = _IQ17abs(tar_dist);
 
 	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
 	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = _IQ17(0.0);
+	_sp_l_speed->decel_b = _sp_r_speed->decel_b = ON;
 	
 	StartCpuTimer2();
 }
@@ -341,6 +337,7 @@ void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
 	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = dec_vel;
+	_sp_l_speed->decel_b = _sp_r_speed->decel_b = ON;
 	
 	StartCpuTimer2();
 }
@@ -374,8 +371,8 @@ void calc_target_velocity_for_turn(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _
 	abs_diff_vr = tar_vr - _sp_r_speed->curr_vel_q17;
 	abs_diff_vl = tar_vl - _sp_l_speed->curr_vel_q17;
 
-	CONV2ABS_IQ17(abs_diff_vr);
-	CONV2ABS_IQ17(abs_diff_vl);
+	if(abs_diff_vr < _IQ17(0.0)) abs_diff_vr = -abs_diff_vr;
+	if(abs_diff_vl < _IQ17(0.0)) abs_diff_vl = -abs_diff_vl;
 
 	temp = _IQ15div(_IQ15(1.0), tar_acc);
 

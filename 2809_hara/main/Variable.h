@@ -28,10 +28,16 @@
 //                           ROBOT ENVIROMENT                               //
 //==========================================================================//
 
-#define BLOCK_WIDTH			_IQ17(180.0)
-#define HALF_BLOCK_WIDTH	_IQ17(90.0)
+#define BLOCK_WIDTH				_IQ17(180.0)
+#define HALF_BLOCK_WIDTH		_IQ17(90.0)
+#define BLOCK_WIDTH_DIV2		_IQ17(90.0)
+#define BLOCK_INSIDE_WIDTH		_IQ17(168.0)
+#define BLOCK_INSIDE_WIDTH_DIV2	_IQ17(84.0)
 
 // width = 81, length 108
+#define ROBOT_LENGTH		_IQ17(108.0)
+#define ROBOT_LENGTH_DIV2	_IQ17(54.0)
+#define ROBOT_WIDTH			_IQ17(81.0)
 #define ROBOT_WIDTH_DIV2	_IQ17(40.5)
 
 //==========================================================================//
@@ -98,6 +104,8 @@ typedef volatile struct
 
 __VARIABLE_EXT__ Flags g_s_flags;
 
+__VARIABLE_EXT__ Uint32 g_timer_500u_u32;
+
 //==========================================================================//
 //                                 SENSOR                                   //
 //==========================================================================//
@@ -110,6 +118,16 @@ __VARIABLE_EXT__ Flags g_s_flags;
 #define L45		g_s_sen[5]	// left 45 sensor
 #define LFS		g_s_sen[6]	// left front side sensor
 #define LBS		g_s_sen[7]	// left back side sensor
+
+#define ACTIVATE_SENSOR		do {								\
+								g_s_flags.sensor_ir_b = ON;		\
+								StartCpuTimer2();				\
+							}while(0)
+
+#define DEACTIVATE_SENSOR	do {								\
+								StopCpuTimer2();				\
+								g_s_flags.sensor_ir_b = OFF;	\
+							}while(0)
 
 typedef volatile struct
 {
@@ -144,16 +162,7 @@ typedef volatile struct
 	SensorFilterVariable	s_lpf,
 							s_lpf_diff;
 	DistanceEstimationVariable	s_dist;
-/*
-	_iq17	dist_q17,
-			dist_yet_q17,
-			dist_diff_q17,
-			high_coefficient_q17,
-			low_coefficient_q17,
-			max_val_q17,
-			min_val_q17,
-			mid_val_q17;
-*/
+
 }SensorVariable;
 
 __VARIABLE_EXT__ SensorVariable	g_s_sen[8];
@@ -187,6 +196,21 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 								g_s_flags.motor_pwm_b = OFF;	\
 							}while(0)
 
+#define ACTIVATE_SYSTEM		do {								\
+								g_s_flags.sensor_ir_b = ON;		\
+								g_s_flags.motor_pwm_b = ON;		\
+								STANDBY_ON;						\
+								StartCpuTimer2();				\
+							}while(0)
+
+#define DEACTIVATE_SYSTEM	do {								\
+								StopCpuTimer2();				\
+								STANDBY_OFF;					\
+								g_s_flags.motor_pwm_b = OFF;	\
+								g_s_flags.sensor_ir_b = OFF;	\
+							}while(0)
+
+
 typedef volatile struct
 {
 	Uint16	sample_u16;
@@ -212,6 +236,8 @@ typedef volatile struct
 			next_vel_q17,
 			target_vel_q17,
 			decel_vel_q17;
+
+	Uint16	decel_b:1;
 }SpeedVariable;
 
 typedef volatile struct

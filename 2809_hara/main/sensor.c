@@ -77,12 +77,97 @@ static volatile Uint16 sensor_seq_[SEN_NUM] = {
 	LF_SEN_ADC_SEQ,		L45_SEN_ADC_SEQ,	LFS_SEN_ADC_SEQ,	LBS_SEN_ADC_SEQ
 };
 
-void init_sensor(void)
+#define	SIDE_Y0	_IQ17(0.0)	// close to wall	- dist = 0
+#define	SIDE_Y1	_IQ17(43.5)	// middle			- dist = (wall_inside_width - robot_width)/2
+#define	SIDE_Y2	_IQ17(87.0)	// far from wall	- dist = wall_inside_width - robot_width 
+static void _InitSideSensorFormulaVariable(void)
 {
-	memset((void *)g_s_sen, 0x00, sizeof(g_s_sen));
+	Uint16 i, ind[] = {
+		0,	// RFS
+		1,	// RBS
+		6,	// LBS
+		7	// LFS
+	};
+	NewtonInterpolationVariable *sp_formula;
 
-	g_sensor_num_u16 = 0;
+	for(i = 0; i < sizeof(ind); i++)
+	{
+		sp_formula = &g_s_sen[ind[i]].s_dist.s_formula;
+		
+		sp_formula->y0 = SIDE_Y0;
+		sp_formula->y1 = SIDE_Y1;
+		sp_formula->y2 = SIDE_Y2;
 
+		// Protect div(num, 0)
+		if(sp_formula->x0 == sp_formula->x1
+		|| sp_formula->x1 == sp_formula->x2
+		|| sp_formula->x2 == sp_formula->x0)
+			g_s_flags.est_dist_b = OFF;
+		else
+			_InlineNewtonInterpolationFormula(sp_formula);
+	}
+}
+
+#define	DIAGONAL_Y0	_IQ17(19.091883092)		// close to wall	- dist = (robot_length/2 - robot_width/2) * sqrt(2)
+#define	DIAGONAL_Y1	_IQ17(99.702056147)		// middle			- dist = wall_inside_width/2 * sqrt(2) - close_to_wall_dist
+#define	DIAGONAL_Y2	_IQ17(206.724350723)	// far from wall	- dist = wall_inside_width/2 + wall_width - robot_width/2 * sqrt(2)
+static void _Init45SensorFormulaVariable(void)
+{
+	Uint16 i, ind[] = {
+		2,	// R45
+		5,	// L45
+	};
+	NewtonInterpolationVariable *sp_formula;
+
+	for(i = 0; i < sizeof(ind); i++)
+	{
+		sp_formula = &g_s_sen[ind[i]].s_dist.s_formula;
+	
+		sp_formula->y0 = S45_Y0;
+		sp_formula->y1 = S45_Y1;
+		sp_formula->y2 = S45_Y2;
+
+		// Protect div(num, 0)
+		if(sp_formula->x0 == sp_formula->x1
+		|| sp_formula->x1 == sp_formula->x2
+		|| sp_formula->x2 == sp_formula->x0)
+			g_s_flags.est_dist_b = OFF;
+		else
+			_InlineNewtonInterpolationFormula(sp_formula);
+	}
+}
+
+#define FRONT_Y0	_IQ17(0.0)		// close to wall	- dist = 0
+#define	FRONT_Y1	_IQ17(30.0)		// middle			- dist = wall_inside_width/2 - robot_length/2
+#define FRONT_Y2	_IQ17(210.0)	// far from wall	- dist = middle_dist + wall_width
+static void _InitFrontSensorFormulaVariable(void)
+{
+	Uint16 i, ind[] = {
+		3,	// RF
+		4,	// LF
+	};
+	NewtonInterpolationVariable *sp_formula;
+
+	for(i = 0; i < sizeof(ind); i++)
+	{
+		sp_formula = &g_s_sen[ind[i]].s_dist.s_formula;
+	
+		sp_formula->y0 = FRONT_Y0;
+		sp_formula->y1 = FRONT_Y1;
+		sp_formula->y2 = FRONT_Y2;
+
+		// Protect div(num, 0)
+		if(sp_formula->x0 == sp_formula->x1
+		|| sp_formula->x1 == sp_formula->x2
+		|| sp_formula->x2 == sp_formula->x0)
+			g_s_flags.est_dist_b = OFF;
+		else
+			_InlineNewtonInterpolationFormula(sp_formula);
+	}
+}
+
+static void _InitSensorFormulaVariable(void)
+{
 	/*
 		Newton Interpolation Init setting of Y param
 		Refer excel file named "sensor estimation" in PPT
@@ -90,40 +175,21 @@ void init_sensor(void)
 		wall_inside_width = 168, wall_width = 180
 		robot_width = 81, robot_length = 108
 	*/
-	/* Side Sensor*/
-	RFS.s_dist.s_formula.y0 = _IQ17(0.0);	// close to wall	- dist = 0
-	RFS.s_dist.s_formula.y1 = _IQ17(43.5);	// middle			- dist = (wall_inside_width - robot_width)/2
-	RFS.s_dist.s_formula.y2 = _IQ17(87.0);	// far from wall	- dist = wall_inside_width - robot_width 
+	g_s_flags.est_dist_b = ON;	// Flag is set as OFF if some error is detected when it is initializing formula variables
 	
-	RBS.s_dist.s_formula.y0 = _IQ17(0.0);
-	RBS.s_dist.s_formula.y1 = _IQ17(43.5);
-	RBS.s_dist.s_formula.y2 = _IQ17(87.0);
-	
-	LFS.s_dist.s_formula.y0 = _IQ17(0.0);
-	LFS.s_dist.s_formula.y1 = _IQ17(43.5);
-	LFS.s_dist.s_formula.y2 = _IQ17(87.0);
+	_InitSideSensorFormulaVariable();
+	_Init45SensorFormulaVariable();
+	_InitFrontSensorFormulaVariable();
+}
 
-	LBS.s_dist.s_formula.y0 = _IQ17(0.0);
-	LBS.s_dist.s_formula.y1 = _IQ17(43.5);
-	LBS.s_dist.s_formula.y2 = _IQ17(87.0);
+void init_sensor(void)
+{
+	memset((void *)g_s_sen, 0x00, sizeof(g_s_sen));
 
-	/* 45d Sensor */	
-	R45.s_dist.s_formula.y0 = _IQ17(19.091883092);	// close to wall	- dist = (robot_length/2 - robot_width/2) * sqrt(2)
-	R45.s_dist.s_formula.y1 = _IQ17(99.702056147);	// middle			- dist = wall_inside_width/2 * sqrt(2) - close_to_wall_dist
-	R45.s_dist.s_formula.y2 = _IQ17(206.724350723);	// far from wall	- dist = wall_inside_width/2 + wall_width - robot_width/2 * sqrt(2)
+	g_sensor_num_u16 = 0;
 
-	L45.s_dist.s_formula.y0 = _IQ17(19.091883092);
-	L45.s_dist.s_formula.y1 = _IQ17(99.702056147);
-	L45.s_dist.s_formula.y2 = _IQ17(206.724350723);
-
-	/* front Sensor */
-	RF.s_dist.s_formula.y0 = _IQ17(0.0);	// close to wall	- dist = 0
-	RF.s_dist.s_formula.y1 = _IQ17(30.0);	// middle			- dist = wall_inside_width/2 - robot_length/2
-	RF.s_dist.s_formula.y2 = _IQ17(210.0);	// far from wall	- dist = middle_dist + wall_width
-
-	LF.s_dist.s_formula.y0 = _IQ17(0.0);
-	LF.s_dist.s_formula.y1 = _IQ17(30.0);
-	LF.s_dist.s_formula.y2 = _IQ17(210.0);
+	// ReadSensorData();
+	_InitSensorFormulaVariable();	// Need to data from EEPROM or sensor setting
 }
 
 // 의동이형 센서 인터럽트 원형
@@ -383,9 +449,8 @@ interrupt void adc_ISR(void)
 static void _set_side_sensor(void)
 {
 	VFDPrintf("RIGHT ->");
-	while(SW_D);
-	
-	while(SW_U)
+	while(SW_U);
+	while(!SW_U)
 	{
 		// Right close
 		if(RFS.s_dist.s_formula.x0 < RFS.s_lpf.output_q17)
@@ -401,9 +466,8 @@ static void _set_side_sensor(void)
 	}
 
 	VFDPrintf(" MIDDLE ");
-	while(SW_D);
-	
-	while(SW_U)
+	while(SW_U);
+	while(!SW_U)
 	{
 		// Right
 		if(RFS.s_dist.s_formula.x1 < RFS.s_lpf.output_q17)
@@ -420,9 +484,8 @@ static void _set_side_sensor(void)
 
 
 	VFDPrintf("<-  LEFT");
-	while(SW_D);
-
-	while(SW_U)
+	while(SW_U);
+	while(!SW_U)
 	{
 		// Right far
 		if(RFS.s_dist.s_formula.x2 < RFS.s_lpf.output_q17)
@@ -460,29 +523,32 @@ static void _set_side_sensor(void)
 	
 }
 
+#define WAIT_TIME	2000
 static void _set_45_n_front_sensor(void)
 {
+	g_timer_500u_u32 = 0;
+	while(g_timer_500u_u32 <= WAIT_TIME);
 
+	move_to_stop(FRONT_Y2, _IQ15(3000.0), _IQ17(140.0))
 }
 
 void set_sensor(void)
 {
-	init_sensor();
-
-	g_s_flags.sensor_ir_b = ON;
+	memset((void *)g_s_sen, 0x00, sizeof(g_s_sen));
+	g_sensor_num_u16 = 0;
 	g_s_flags.est_dist_b = OFF;	// If sensor calibration data not exist, calcuation can be error.
 	
-	StartCpuTimer2();
-	_set_side_sensor();
-	StopCpuTimer2();
+	ACTIVATE_SENSOR;
+	_set_side_sensor();		// Non-Auto, so need only sensor
+	DEACTIVATE_SENSOR;
 
 	VFDPrintf("45nFRONT");
-	while(SW_D);
+	while(SW_U);
 	DELAY_US(SW_DELAY);
 
-	StartCpuTimer2();
-	_set_45_n_front_sensor();
-	StopCpuTimer2();
+	ACTIVATE_SYSTEM;
+	_set_45_n_front_sensor();	// Auto, so need motor & sensor
+	DEACTIVATE_SYSTEM;
 	
 	g_s_flags.sensor_ir_b = OFF;
 }
