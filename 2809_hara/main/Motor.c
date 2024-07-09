@@ -305,17 +305,17 @@ interrupt void motor_timer2_ISR(void)
 // 동작 후 정차
 void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 {
-	_iq17 temp0, temp1;
+	_iq17 curr_vel, dec_dist;
 
 	StopCpuTimer2();
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
 
-	temp0 = (_sp_l_speed->curr_vel_q17 + _sp_r_speed->curr_vel_q17) >> 1;
-	temp1 = (tar_vel + temp0) >> 1;
-	temp1 = _IQ17div(temp1, temp0); 
-	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = _IQ17abs(tar_dist);
+	curr_vel = (_sp_l_speed->curr_vel_q17 + _sp_r_speed->curr_vel_q17) >> 1;
+	_InlineCalcDistNVel(curr_vel, &tar_vel, _IQ17(0.0), tar_dist, &dec_dist, tar_acc);
+	
+	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
 
 	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
@@ -328,11 +328,17 @@ void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 // 동작 후 이어서 동작
 void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 {
+	_iq17 curr_vel, dec_dist;
+	
 	StopCpuTimer2();
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
-	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = _IQ17abs(tar_dist) >> 1;
+
+	curr_vel = (_sp_l_speed->curr_vel_q17 + _sp_r_speed->curr_vel_q17) >> 1;
+	_InlineCalcDistNVel(curr_vel, &tar_vel, dec_vel, tar_dist, &dec_dist, tar_acc);
+	
+	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
 
 	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;

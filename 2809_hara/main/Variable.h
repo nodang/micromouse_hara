@@ -177,6 +177,9 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 #define MAX_VELO	4000
 #define MIN_VELO	-MAX_VELO
 
+#define MAX_ACC		16000
+#define MIN_ACC		0		// not meaningful
+
 #define STANDBY_ON 	do {										\
 						GpioDataRegs.GPADAT.bit.GPIO22 = ON;	\
 					}while(0)

@@ -123,9 +123,9 @@ static void _Init45SensorFormulaVariable(void)
 	{
 		sp_formula = &g_s_sen[ind[i]].s_dist.s_formula;
 	
-		sp_formula->y0 = S45_Y0;
-		sp_formula->y1 = S45_Y1;
-		sp_formula->y2 = S45_Y2;
+		sp_formula->y0 = DIAGONAL_Y0;
+		sp_formula->y1 = DIAGONAL_Y1;
+		sp_formula->y2 = DIAGONAL_Y2;
 
 		// Protect div(num, 0)
 		if(sp_formula->x0 == sp_formula->x1
@@ -529,7 +529,7 @@ static void _set_45_n_front_sensor(void)
 	g_timer_500u_u32 = 0;
 	while(g_timer_500u_u32 <= WAIT_TIME);
 
-	move_to_stop(FRONT_Y2, _IQ15(3000.0), _IQ17(140.0))
+	move_to_stop(FRONT_Y2, _IQ15(3000.0), _IQ17(140.0));
 }
 
 void set_sensor(void)
