@@ -500,6 +500,16 @@ static void _set_side_sensor(void)
 			LBS.s_dist.s_formula.x0 = LBS.s_lpf.output_q17;
 	}
 
+	TxPrintf("LBS: x0 %4ld | x1 %4ld | x2 %4ld\n",
+				LBS.s_dist.s_formula.x0 >> 17,
+							LBS.s_dist.s_formula.x0 >> 17,
+										LBS.s_dist.s_formula.x0 >> 17);
+
+	TxPrintf("LFS: x0 %4ld | x1 %4ld | x2 %4ld\n",
+				LFS.s_dist.s_formula.x0 >> 17,
+							LFS.s_dist.s_formula.x0 >> 17,
+										LFS.s_dist.s_formula.x0 >> 17);
+
 	TxPrintf("RFS: x0 %4ld | x1 %4ld | x2 %4ld\n",
 				RFS.s_dist.s_formula.x0 >> 17,
 							RFS.s_dist.s_formula.x0 >> 17,
@@ -510,26 +520,90 @@ static void _set_side_sensor(void)
 							RBS.s_dist.s_formula.x0 >> 17,
 										RBS.s_dist.s_formula.x0 >> 17);
 
-	TxPrintf("LFS: x0 %4ld | x1 %4ld | x2 %4ld\n",
-				LFS.s_dist.s_formula.x0 >> 17,
-							LFS.s_dist.s_formula.x0 >> 17,
-										LFS.s_dist.s_formula.x0 >> 17);
-
-	TxPrintf("LBS: x0 %4ld | x1 %4ld | x2 %4ld\n",
-				LBS.s_dist.s_formula.x0 >> 17,
-							LBS.s_dist.s_formula.x0 >> 17,
-										LBS.s_dist.s_formula.x0 >> 17);
-
 	
 }
 
 #define WAIT_TIME	2000
 static void _set_45_n_front_sensor(void)
 {
+	_iq17 gone_dist;
+
 	g_timer_500u_u32 = 0;
 	while(g_timer_500u_u32 <= WAIT_TIME);
 
-	move_to_stop(FRONT_Y2, _IQ15(3000.0), _IQ17(140.0));
+	move_to_stop(_IQ17(300.0), _IQ15(3000.0), _IQ17(140.0));
+
+	while(g_s_left_motor.s_dist.remaining_q17 > _IQ17(0.0) || g_s_right_motor.s_dist.remaining_q17 > _IQ17(0.0))
+	{
+		gone_dist = (g_s_left_motor.s_dist.gone_q17 + g_s_right_motor.s_dist.gone_q17) >> 1;
+	
+		// Diagonal sensor
+		if(gone_dist <= DIAGONAL_Y0)
+		{
+			if(R45.s_dist.s_formula.x0 < R45.s_lpf.output_q17)
+				R45.s_dist.s_formula.x0 = R45.s_lpf.output_q17;
+			if(L45.s_dist.s_formula.x0 < L45.s_lpf.output_q17)
+				L45.s_dist.s_formula.x0 = L45.s_lpf.output_q17;
+		}
+		else if(gone_dist <= DIAGONAL_Y1)
+		{
+			if(R45.s_dist.s_formula.x1 < R45.s_lpf.output_q17)
+				R45.s_dist.s_formula.x1 = R45.s_lpf.output_q17;
+			if(L45.s_dist.s_formula.x1 < L45.s_lpf.output_q17)
+				L45.s_dist.s_formula.x1 = L45.s_lpf.output_q17;
+		}
+		else if(gone_dist <= DIAGONAL_Y2)
+		{
+			if(R45.s_dist.s_formula.x2 < R45.s_lpf.output_q17)
+				R45.s_dist.s_formula.x2 = R45.s_lpf.output_q17;
+			if(L45.s_dist.s_formula.x2 < L45.s_lpf.output_q17)
+				L45.s_dist.s_formula.x2 = L45.s_lpf.output_q17;
+		}
+
+		// Front sensor
+		if(gone_dist <= FRONT_Y0)
+		{
+			if(RF.s_dist.s_formula.x0 < RF.s_lpf.output_q17)
+				RF.s_dist.s_formula.x0 = RF.s_lpf.output_q17;
+			if(LF.s_dist.s_formula.x0 < LF.s_lpf.output_q17)
+				LF.s_dist.s_formula.x0 = LF.s_lpf.output_q17;
+		}
+		else if(gone_dist <= FRONT_Y1)
+		{
+			if(RF.s_dist.s_formula.x1 < RF.s_lpf.output_q17)
+				RF.s_dist.s_formula.x1 = RF.s_lpf.output_q17;
+			if(LF.s_dist.s_formula.x1 < LF.s_lpf.output_q17)
+				LF.s_dist.s_formula.x1 = LF.s_lpf.output_q17;
+		}
+		else if(gone_dist <= FRONT_Y2)
+		{
+			if(RF.s_dist.s_formula.x2 < RF.s_lpf.output_q17)
+				RF.s_dist.s_formula.x2 = RF.s_lpf.output_q17;
+			if(LF.s_dist.s_formula.x2 < LF.s_lpf.output_q17)
+				LF.s_dist.s_formula.x2 = LF.s_lpf.output_q17;
+		}
+	}
+
+	
+	TxPrintf("L45: x0 %4ld | x1 %4ld | x2 %4ld\n",
+				L45.s_dist.s_formula.x0 >> 17,
+							L45.s_dist.s_formula.x0 >> 17,
+										L45.s_dist.s_formula.x0 >> 17);
+
+	TxPrintf("LF: x0 %4ld | x1 %4ld | x2 %4ld\n",
+				LF.s_dist.s_formula.x0 >> 17,
+							LF.s_dist.s_formula.x0 >> 17,
+										LF.s_dist.s_formula.x0 >> 17);
+
+	TxPrintf("RF: x0 %4ld | x1 %4ld | x2 %4ld\n",
+				RF.s_dist.s_formula.x0 >> 17,
+							RF.s_dist.s_formula.x0 >> 17,
+										RF.s_dist.s_formula.x0 >> 17);
+
+	TxPrintf("R45: x0 %4ld | x1 %4ld | x2 %4ld\n",
+				R45.s_dist.s_formula.x0 >> 17,
+							R45.s_dist.s_formula.x0 >> 17,
+										R45.s_dist.s_formula.x0 >> 17);
 }
 
 void set_sensor(void)

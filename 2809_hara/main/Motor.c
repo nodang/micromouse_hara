@@ -124,14 +124,8 @@ interrupt void motor_timer2_ISR(void)
 #if 1
 	// 사용자가 정해준 거리에 합친 거리를 제거해 남은 거리를 구한다.
 	// calculate remainging distance(from current to end). minus gone distance by target distance
-	_sp_r_dist->remaining_q17 = _sp_r_dist->target_q17 - _sp_r_dist->gone_q17;
-	_sp_l_dist->remaining_q17 = _sp_l_dist->target_q17 - _sp_l_dist->gone_q17;
-
-	// convert to the absolute value
-	if(_sp_r_dist->remaining_q17 < _IQ17(0.0))
-		_sp_r_dist->remaining_q17 = -_sp_r_dist->remaining_q17;
-	if(_sp_l_dist->remaining_q17 < _IQ17(0.0))
-		_sp_l_dist->remaining_q17 = -_sp_l_dist->remaining_q17;
+	_sp_r_dist->remaining_q17 = _IQ17abs(_sp_r_dist->target_q17 - _sp_r_dist->gone_q17);
+	_sp_l_dist->remaining_q17 = _IQ17abs(_sp_l_dist->target_q17 - _sp_l_dist->gone_q17);
 
 	// 펄스당 속도와 QEP를 곱해 현재의 속도를 구한다.
 	// calculate current velocity. multiply the sample by velocity per a pulse
