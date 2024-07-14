@@ -290,6 +290,8 @@ interrupt void adc_ISR(void)
 #if 1
 #define SENSOR_ISR_DEBUG ON
 
+#pragma CODE_SECTION(sensor_timer0_ISR, "ramfuncs2");
+#pragma CODE_SECTION(adc_ISR, "ramfuncs2");
 interrupt void sensor_timer0_ISR(void)
 {
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;

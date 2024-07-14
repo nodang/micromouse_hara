@@ -295,7 +295,6 @@ static void _TestMotor(void)
 {
 	int32 test_vel_i32 = 0;
 	_iq17 target_test_vel_q17 = _IQ17(0.0);
-	Uint32 timer_cnt_u32 = 0;
 
 	while(SW_U)
 	{
@@ -308,76 +307,57 @@ static void _TestMotor(void)
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
 		else if(!SW_D)
 		{
-			if(timer_cnt_u32 >= MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT)
+			init_motor();
+		
+			VFDPrintf("Testing.");
+			TxPrintf("Testing...\n");
+
+			target_test_vel_q17 = _IQ17(test_vel_i32);
+			
+			g_s_right_motor.s_speed.target_vel_q17 = target_test_vel_q17;
+			g_s_left_motor.s_speed.target_vel_q17 = target_test_vel_q17;
+			
+			ACTIVATE_MOTOR;
+
+			g_timer_500u_u32 = 0;				
+
+			while(TRUE)
 			{
-				VFDPrintf("Cannot..");
-				TxPrintf("Cannot test now. Error was detected\n");
+				TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+					test_vel_i32,
+					_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
+					_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+					g_s_left_motor.s_qep.sample_i16,
+					g_s_right_motor.s_qep.sample_i16
+				);
+			
+				if(g_timer_500u_u32 > 4000)	// 2 seconds
+					break;
 			}
-			else
-			{
-				VFDPrintf("Testing.");
-				TxPrintf("Testing...\n");
 
-				timer_cnt_u32 = 0;
-				target_test_vel_q17 = _IQ17(test_vel_i32);
-				
-				g_s_right_motor.s_speed.target_vel_q17 = target_test_vel_q17;
-				g_s_left_motor.s_speed.target_vel_q17 = target_test_vel_q17;
-				
-				ACTIVATE_MOTOR;
+			g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+			g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
 
-				while(g_s_left_motor.s_speed.curr_vel_q17 != target_test_vel_q17
-					&& g_s_right_motor.s_speed.curr_vel_q17 != target_test_vel_q17)
-				{
-					TxPrintf("tv: %5ld, tvl: %5.2lf, tvr: %5.2lf, nvl: %5.2lf, nvr: %5.2lf, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
-						test_vel_i32,
-						_IQ17toF(g_s_right_motor.s_speed.target_vel_q17),
-						_IQ17toF(g_s_right_motor.s_speed.target_vel_q17),
-						_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),
-						_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),
-						_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
-						_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
-						g_s_left_motor.s_qep.sample_i16,
-						g_s_right_motor.s_qep.sample_i16
-					);
-				
-					timer_cnt_u32++;
+			g_timer_500u_u32 = 0;
 
-					if(timer_cnt_u32 >= MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT)
-						break;
-				}
+			while(TRUE)
+			{			
+				TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+					test_vel_i32,
+					_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
+					_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+					g_s_left_motor.s_qep.sample_i16,
+					g_s_right_motor.s_qep.sample_i16
+				);
 
-				if(timer_cnt_u32 >= MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT)
-				{
-					VFDPrintf("Error...");
-					TxPrintf("Motor speed cannot reach target speed.\n");
-				}
-				else
-				{
-					VFDPrintf("Ending..");
-					TxPrintf("Ending...\n");
-				}
-
-				g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
-				g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
-
-				while(g_s_left_motor.s_speed.curr_vel_q17 != _IQ17(0.0)
-					&& g_s_right_motor.s_speed.curr_vel_q17 != _IQ17(0.0))
-				{			
-					TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
-						test_vel_i32,
-						_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
-						_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
-						g_s_left_motor.s_qep.sample_i16,
-						g_s_right_motor.s_qep.sample_i16
-					);
-				}
-
-				DEACTIVATE_MOTOR;
-
-				VFDPrintf("TestOver");
-				TxPrintf("Test is over.\n");
+				if(g_timer_500u_u32 > 4000)	// 2 seconds
+					break;
 			}
+
+			DEACTIVATE_MOTOR;
+
+			VFDPrintf("TestOver");
+			TxPrintf("Test is over.\n");
 		}
 	}
 	
@@ -390,22 +370,9 @@ static void _CalibrateRunningParam(void)
 	DELAY_US(SW_DELAY);
 }
 
-static void _Move2Stop(void)
+static void _TestMove2Stop(void)
 {
-	ACTIVATE_MOTOR;
-
-	VFDPrintf("m2sREADY");
-	while(SW_D);
-	DELAY_US(SW_DELAY);
-	
-	move_to_stop(_IQ17(BLOCK_WIDTH),_IQ15(3000.0), _IQ15(650.0));
-	
-	while(SW_U)
-	{
-	}
-
-	DEACTIVATE_MOTOR;
-
+	VFDPrintf("made yet");
 	DELAY_US(SW_DELAY);
 }
 
@@ -413,7 +380,7 @@ static void _Move2Stop(void)
 static void _TestRunning(void)
 {
 	static void (*menu_func_[])() = {
-		_Move2Stop
+		_TestMove2Stop
 	};
 
 	static const char *kMenuChar_[] = {

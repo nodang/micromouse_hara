@@ -136,7 +136,6 @@ typedef long double     float64;
 #include "DSP280x_SysCtrl.h"            // System Control/Power Modes
 #include "DSP280x_XIntrupt.h"			// External Interrupts
 #include "IQmathLib.h"
-#include "Struct.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -82,6 +82,9 @@ void init_motor(void)
 	memset((void *)&g_s_cmd_vel, 0x00, sizeof(CommandVelocityVariable));
 }
 
+#pragma CODE_SECTION(motor_timer2_ISR, "ramfuncs2");
+#pragma CODE_SECTION(move_to_stop, "ramfuncs2");
+#pragma CODE_SECTION(move_to_move, "ramfuncs2");
 interrupt void motor_timer2_ISR(void)
 {
 	// QEP값을 받는다
@@ -137,10 +140,12 @@ interrupt void motor_timer2_ISR(void)
 	if(_sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17 && _sp_r_speed->decel_b == ON)
 	{
 		_sp_r_speed->target_vel_q17 = _sp_r_speed->decel_vel_q17;
+		_sp_r_speed->decel_b == OFF;
 	}
 	if(_sp_l_dist->remaining_q17 <= _sp_l_dist->decel_point_q17	&& _sp_l_speed->decel_b == ON)
 	{
 		_sp_l_speed->target_vel_q17 = _sp_l_speed->decel_vel_q17;
+		_sp_l_speed->decel_b == OFF;
 	}
 
 	// 가감속
