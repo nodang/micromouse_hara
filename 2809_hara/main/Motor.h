@@ -48,11 +48,11 @@ inline void _InlineCalcDistNVel(_iq17 enter_vel, _iq17 *tar_vel, _iq17 exit_vel,
 	}
 }
 
-extern void init_motor(void);
-extern interrupt void motor_timer2_ISR(void);
+extern void InitMotor(void);
+extern interrupt void IsrTimer2ForMotor(void);
 
-extern void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel);
-extern void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel);
+extern void MoveToStop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel);
+extern void MoveToMove(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel);
 
 #endif
 

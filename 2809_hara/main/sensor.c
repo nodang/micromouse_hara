@@ -36,8 +36,6 @@
 #define	SENSOR_Ka_DIFF	    	_IQ30(-0.8540806855)//(W_CUT -1) / (W_CUT + 1)
 #define	SENSOR_Kb_DIFF			_IQ30(0.0729596573)// W_CUT / (W_CUT + 1)
 
-
-#define SEN_NUM			8
 #define SEN_NUM_S0		7	// numbering start at 0
 #define SEN_NUM_HALF	4
 #define SEN_NUM_HALF_S0	3	// numbering start at 0
@@ -182,7 +180,7 @@ static void _InitSensorFormulaVariable(void)
 	_InitFrontSensorFormulaVariable();
 }
 
-void init_sensor(void)
+void InitSensor(void)
 {
 	memset((void *)g_s_sen, 0x00, sizeof(g_s_sen));
 
@@ -194,7 +192,7 @@ void init_sensor(void)
 
 // 의동이형 센서 인터럽트 원형
 #if 0
-interrupt void sensor_timer0_ISR(void)
+interrupt void IsrTimer0ForSensor(void)
 {
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 
@@ -213,7 +211,7 @@ interrupt void sensor_timer0_ISR(void)
 	AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
 }
 
-interrupt void adc_ISR(void)
+interrupt void IsrAdc(void)
 {
 	static Uint16 ADC_channel_cnt = 0;
 	static Uint32 sen_sum0_u32 = 0; 
@@ -290,9 +288,9 @@ interrupt void adc_ISR(void)
 #if 1
 #define SENSOR_ISR_DEBUG ON
 
-#pragma CODE_SECTION(sensor_timer0_ISR, "ramfuncs2");
-#pragma CODE_SECTION(adc_ISR, "ramfuncs2");
-interrupt void sensor_timer0_ISR(void)
+#pragma CODE_SECTION(IsrTimer0ForSensor, "ramfuncs2");
+#pragma CODE_SECTION(IsrAdc, "ramfuncs2");
+interrupt void IsrTimer0ForSensor(void)
 {
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 
@@ -313,7 +311,7 @@ interrupt void sensor_timer0_ISR(void)
 	AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
 }
 
-interrupt void adc_ISR(void)
+interrupt void IsrAdc(void)
 {
 	static Uint16 ADC_channel_cnt = 0;
 	static Uint32 sen_sum0_u32 = 0, sen_sum1_u32 = 0;
@@ -448,7 +446,7 @@ interrupt void adc_ISR(void)
 }
 #endif
 
-static void _set_side_sensor(void)
+static void _CalibrateSideSensors(void)
 {
 	VFDPrintf("RIGHT ->");
 	while(SW_U);
@@ -525,15 +523,14 @@ static void _set_side_sensor(void)
 	
 }
 
-#define WAIT_TIME	2000
-static void _set_45_n_front_sensor(void)
+static void _CalibrateDiagonalAndFrontSensor(void)
 {
 	_iq17 gone_dist;
 
 	g_timer_500u_u32 = 0;
-	while(g_timer_500u_u32 <= WAIT_TIME);
+	while(g_timer_500u_u32 <= 2000);	// wait 1 second
 
-	move_to_stop(_IQ17(300.0), _IQ15(3000.0), _IQ17(140.0));
+	MoveToStop(_IQ17(300.0), _IQ15(3000.0), _IQ17(140.0));
 
 	while(g_s_left_motor.s_dist.remaining_q17 > _IQ17(0.0) || g_s_right_motor.s_dist.remaining_q17 > _IQ17(0.0))
 	{
@@ -608,14 +605,14 @@ static void _set_45_n_front_sensor(void)
 										R45.s_dist.s_formula.x0 >> 17);
 }
 
-void set_sensor(void)
+void CalibrateSensorValue(void)
 {
 	memset((void *)g_s_sen, 0x00, sizeof(g_s_sen));
 	g_sensor_num_u16 = 0;
 	g_s_flags.est_dist_b = OFF;	// If sensor calibration data not exist, calcuation can be error.
 	
 	ACTIVATE_SENSOR;
-	_set_side_sensor();		// Non-Auto, so need only sensor
+	_CalibrateSideSensors();		// Non-Auto, so need only sensor
 	DEACTIVATE_SENSOR;
 
 	VFDPrintf("45nFRONT");
@@ -623,9 +620,7 @@ void set_sensor(void)
 	DELAY_US(SW_DELAY);
 
 	ACTIVATE_SYSTEM;
-	_set_45_n_front_sensor();	// Auto, so need motor & sensor
+	_CalibrateDiagonalAndFrontSensor();	// Auto, so need motor & sensor
 	DEACTIVATE_SYSTEM;
-	
-	g_s_flags.sensor_ir_b = OFF;
 }
 

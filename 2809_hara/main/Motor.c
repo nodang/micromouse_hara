@@ -61,7 +61,7 @@ static SpeedVariable *_sp_l_speed = &g_s_left_motor.s_speed;
 static AdjustPositionVariable *_sp_r_msc = &g_s_right_motor.s_adj;
 static AdjustPositionVariable *_sp_l_msc = &g_s_left_motor.s_adj;
 
-static void _init_motor_structure(MotorVariable *sp_motor)
+static void _InitMotorSturcture(MotorVariable *sp_motor)
 {
 	memset((void *)sp_motor, 0x00, sizeof(MotorVariable));
 
@@ -74,18 +74,18 @@ static void _init_motor_structure(MotorVariable *sp_motor)
 	sp_motor->s_adj.adj_ratio_q17 = _IQ17(1.0);
 }
 
-void init_motor(void)
+void InitMotor(void)
 {
-	_init_motor_structure(&g_s_right_motor);
-	_init_motor_structure(&g_s_left_motor);
+	_InitMotorSturcture(&g_s_right_motor);
+	_InitMotorSturcture(&g_s_left_motor);
 
 	memset((void *)&g_s_cmd_vel, 0x00, sizeof(CommandVelocityVariable));
 }
 
-#pragma CODE_SECTION(motor_timer2_ISR, "ramfuncs2");
-#pragma CODE_SECTION(move_to_stop, "ramfuncs2");
-#pragma CODE_SECTION(move_to_move, "ramfuncs2");
-interrupt void motor_timer2_ISR(void)
+#pragma CODE_SECTION(IsrTimer2ForMotor, "ramfuncs2");
+#pragma CODE_SECTION(MoveToStop, "ramfuncs2");
+#pragma CODE_SECTION(MoveToMove, "ramfuncs2");
+interrupt void IsrTimer2ForMotor(void)
 {
 	// QEP값을 받는다
 	// save qep sampling value
@@ -302,7 +302,7 @@ interrupt void motor_timer2_ISR(void)
 }
 
 // 동작 후 정차
-void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
+void MoveToStop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 {
 	_iq17 curr_vel, dec_dist;
 
@@ -325,7 +325,7 @@ void move_to_stop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 }
 
 // 동작 후 이어서 동작
-void move_to_move(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
+void MoveToMove(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 {
 	_iq17 curr_vel, dec_dist;
 	
@@ -476,7 +476,7 @@ static inline void _inline_move_to_func(CommandVelocityVariable *p_cmd_vel, _iq1
 	g_s_left_motor.distance_sum_q17 = g_s_right_motor.distance_sum_q17 = _IQ17(0.0);
 }
 
-void move_to_stop(Uint16 run_type)
+void MoveToStop(Uint16 run_type)
 {
 	CommandVelocityVariable cmd_vel;
 	_iq17 q17_temp;
@@ -494,7 +494,7 @@ void move_to_stop(Uint16 run_type)
 
 }
 
-void move_to_move(_iq17 tar_vel, Uint16 run_type, Uint16 restore)
+void MoveToMove(_iq17 tar_vel, Uint16 run_type, Uint16 restore)
 {
 	CommandVelocityVariable cmd_vel;
 	_iq17 q17_temp;

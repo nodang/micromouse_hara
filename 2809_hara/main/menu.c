@@ -19,21 +19,12 @@
 //	Static Function of Low Level
 //===========================================================================//
 
-static void _CalibrateSensorValue(void)
-{
-	set_sensor();
-	
-	VFDPrintf("made yet");
-}
-
-#define SEN_NUM	8
 static void _SensorValue(void)
 {
 	int16 sw_cnt = 0;
 	const int16 kNum = SEN_NUM - 1;
 
-	g_s_flags.sensor_ir_b = ON;
-	StartCpuTimer2();
+	ACTIVATE_SENSOR;
 
 	while(SW_U)
 	{
@@ -55,33 +46,45 @@ static void _SensorValue(void)
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	sw_cnt--; }
 	}
 
-	StopCpuTimer2();
-	g_s_flags.sensor_ir_b = OFF;
+
+	DEACTIVATE_SENSOR;
 	
 	DELAY_US(SW_DELAY);
 }
 
-#define DIST_CRETIREA	_IQ17(90.0)
-static void _SensorArray(void)
+#define CHECK_FLAG_ARRAY_NUM 9
+static void _FlagArray(void)
 {
-	g_s_flags.sensor_ir_b = ON;
-	StartCpuTimer2();
+	Uint16 pass_criteria[] = { FALSE };
+	const char *kVfdChar[] = { "EstD" };
+	
+	int16 sw_cnt = 0;
+	const int16 kNum = sizeof(pass_criteria) - 1;
+
+	pass_criteria[0] = g_s_flags.est_dist_b == ON ? TRUE : FALSE;
 
 	while(SW_U)
 	{
-		VFDPrintf("%1u%1u%1u%1u%1u%1u%1u%1u",
-				LBS.s_dist.value_q17 > DIST_CRETIREA,
-					LFS.s_dist.value_q17 > DIST_CRETIREA,
-						L45.s_dist.value_q17 > DIST_CRETIREA,
-							LF.s_dist.value_q17 > DIST_CRETIREA,
-								RF.s_dist.value_q17 > DIST_CRETIREA,
-									R45.s_dist.value_q17 > DIST_CRETIREA,
-										RFS.s_dist.value_q17 > DIST_CRETIREA,
-											RBS.s_dist.value_q17 > DIST_CRETIREA);
-	}
+		if(sw_cnt > kNum)	sw_cnt = 0;
+		else if(sw_cnt < 0)	sw_cnt = kNum;
 
-	StopCpuTimer2();
-	g_s_flags.sensor_ir_b = OFF;
+		if(SW_D)
+		{
+			VFDPrintf("%1d:%1d %c%c%c%c", kNum, sw_cnt,
+				kVfdChar[sw_cnt][0], 
+					kVfdChar[sw_cnt][1],
+						kVfdChar[sw_cnt][2],
+							kVfdChar[sw_cnt][3]);
+		}
+		else
+		{
+			VFDPrintf("%1d:%1d %s", kNum, sw_cnt,
+				pass_criteria[sw_cnt] == TRUE ? "PASS" : "FAIL");
+		}		
+
+		if(!SW_R)		{ DELAY_US(SW_DELAY);	sw_cnt++; }
+		else if(!SW_L)	{ DELAY_US(SW_DELAY);	sw_cnt--; }
+	}
 	
 	DELAY_US(SW_DELAY);
 }
@@ -141,11 +144,11 @@ static void _Utils(void)
 static void _TestSensor(void)
 {
 	static void (*menu_func_[])() = {
-		_SensorValue, _SensorArray, _Utils
+		_SensorValue, _FlagArray, _Utils
 	};
 
 	static const char *kMenuChar_[] = {
-		"senValue",	"senArray",	"utilsON"
+		"senValue",	"flag Arr",	"utils  "
 	};
 
 	int16 menu_cnt_i16 = 0;
@@ -177,12 +180,17 @@ static void _Velocity(void)
 {
 	int32 *p_param[] = { &g_ref_vel_i32 };
 	const char *kVfdChar[] = { "ref" };
+	const int32 kParamMax[] = { MAX_VELO };
+	const int32 kParamMin[] = { MIN_VELO };
 	
 	Uint16 sw_cnt = 0;
 	const int16 kNum = VEL_NUM - 1;
 
 	while(SW_U)
 	{
+		if(*p_param[sw_cnt] > kParamMax[sw_cnt])		*p_param[sw_cnt] = kParamMax[sw_cnt];
+		else if(*p_param[sw_cnt] < kParamMin[sw_cnt])	*p_param[sw_cnt] = kParamMin[sw_cnt];
+	
 		VFDPrintf("%c%c%c%+5ld", kVfdChar[sw_cnt][0], kVfdChar[sw_cnt][1], kVfdChar[sw_cnt][2], *p_param[sw_cnt]);
 
 		if (!SW_D)	
@@ -205,12 +213,17 @@ static void _Accelaration(void)
 {
 	Uint16 *p_param[] = { &g_accel_u16 };
 	const char *kVfdChar[] = { "acc" };
+	const Uint16 kParamMax[] = { MAX_ACC };
+	const Uint16 kParamMin[] = { MIN_ACC };
 
 	Uint16 sw_cnt = 0;
 	const int16 kNum = ACC_NUM - 1;
 
 	while(SW_U)
 	{
+		if(*p_param[sw_cnt] > kParamMax[sw_cnt])		*p_param[sw_cnt] = kParamMax[sw_cnt];
+		else if(*p_param[sw_cnt] < kParamMin[sw_cnt])	*p_param[sw_cnt] = kParamMin[sw_cnt];
+	
 		VFDPrintf("%c%c%c%5u", kVfdChar[sw_cnt][0], kVfdChar[sw_cnt][1], kVfdChar[sw_cnt][2], *p_param[sw_cnt]);
 
 		if (!SW_D)	
@@ -229,16 +242,23 @@ static void _Accelaration(void)
 
 #define PID_NUM	3
 #define PID_RESOLUTION	1
+#define PID_MAX 1000
+#define PID_MIM 0
 static void _MotorPID(void)
 {
 	Uint32 *p_param[] = { &g_motor_kp_u32, &g_motor_ki_u32, &g_motor_kd_u32 };
 	const char *kVfdChar[] = { "kp", "ki", "kd" };
+	const Uint32 kParamMax[] = { PID_MAX, PID_MAX, PID_MAX };
+	const Uint32 kParamMin[] = { PID_MIM, PID_MIM, PID_MIM };
 
 	Uint16 sw_cnt = 0;
 	const int16 kNum = PID_NUM - 1;
 
 	while(SW_U)
 	{
+		if(*p_param[sw_cnt] > kParamMax[sw_cnt])		*p_param[sw_cnt] = kParamMax[sw_cnt];
+		else if(*p_param[sw_cnt] < kParamMin[sw_cnt])	*p_param[sw_cnt] = kParamMin[sw_cnt];
+	
 		VFDPrintf("%c%c%6lu", kVfdChar[sw_cnt][0], kVfdChar[sw_cnt][1], *p_param[sw_cnt]);
 
 		if (!SW_D)	
@@ -290,75 +310,116 @@ static void _CalibrateMotorParam(void)
 }
 
 #define RESOLUTION_TEST_VEL	500
-#define MOTOR_SPEED_CAN_NOT_REACH_TARGET_ERROR_CNT 1000
+#define RESOLUTION_TEST_ACC	1000
 static void _TestMotor(void)
 {
 	int32 test_vel_i32 = 0;
 	_iq17 target_test_vel_q17 = _IQ17(0.0);
 
+	Uint16 test_acc_u16 = 0;
+	_iq17 target_test_acc_q17 = _IQ17(0.0);
+
 	while(SW_U)
 	{
-		if(test_vel_i32 > MAX_VELO)			test_vel_i32 = MAX_VELO;
-		else if(test_vel_i32 < MIN_VELO)	test_vel_i32 = MIN_VELO;
-	
-		VFDPrintf("Vel%5ld", test_vel_i32);
-
-		if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
-		else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
-		else if(!SW_D)
+		// set test velocity 
+		while(SW_U && SW_D)
 		{
-			init_motor();
+			if(test_vel_i32 > MAX_VELO)			test_vel_i32 = MAX_VELO;
+			else if(test_vel_i32 < MIN_VELO)	test_vel_i32 = MIN_VELO;
 		
-			VFDPrintf("Testing.");
-			TxPrintf("Testing...\n");
+			VFDPrintf("Vel%5ld", test_vel_i32);
 
-			target_test_vel_q17 = _IQ17(test_vel_i32);
-			
-			g_s_right_motor.s_speed.target_vel_q17 = target_test_vel_q17;
-			g_s_left_motor.s_speed.target_vel_q17 = target_test_vel_q17;
-			
-			ACTIVATE_MOTOR;
-
-			g_timer_500u_u32 = 0;				
-
-			while(TRUE)
-			{
-				TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
-					test_vel_i32,
-					_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
-					_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
-					g_s_left_motor.s_qep.sample_i16,
-					g_s_right_motor.s_qep.sample_i16
-				);
-			
-				if(g_timer_500u_u32 > 4000)	// 2 seconds
-					break;
-			}
-
-			g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
-			g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
-
-			g_timer_500u_u32 = 0;
-
-			while(TRUE)
-			{			
-				TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
-					test_vel_i32,
-					_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
-					_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
-					g_s_left_motor.s_qep.sample_i16,
-					g_s_right_motor.s_qep.sample_i16
-				);
-
-				if(g_timer_500u_u32 > 4000)	// 2 seconds
-					break;
-			}
-
-			DEACTIVATE_MOTOR;
-
-			VFDPrintf("TestOver");
-			TxPrintf("Test is over.\n");
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
 		}
+
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
+		
+		// set test acceleration 
+		while(SW_U && SW_D)
+		{
+			if(test_acc_u16 > MAX_ACC) 		test_acc_u16 = MAX_ACC;
+			else if(test_acc_u16 < MIN_ACC)	test_acc_u16 = MIN_ACC;
+		
+			VFDPrintf("Acc%5u", test_acc_u16);
+
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_u16 += RESOLUTION_TEST_ACC; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_u16 -= RESOLUTION_TEST_ACC; }
+		}
+
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
+
+		// motor test logic
+		InitMotor();
+	
+		VFDPrintf("Testing.");
+		TxPrintf("Testing...\n");
+
+		target_test_vel_q17 = _IQ17(test_vel_i32);
+		
+		g_s_right_motor.s_speed.target_vel_q17 = target_test_vel_q17;
+		g_s_left_motor.s_speed.target_vel_q17 = target_test_vel_q17;
+
+		target_test_acc_q17 = _IQ17(test_acc_u16);
+		
+		g_s_right_motor.s_speed.target_vel_q17 = target_test_acc_q17;
+		g_s_left_motor.s_speed.target_vel_q17 = target_test_acc_q17;
+		
+		ACTIVATE_MOTOR;
+
+		g_timer_500u_u32 = 0;				
+
+		// accelerate motor speed
+		while(TRUE)
+		{
+			TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+				test_vel_i32,
+				_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
+				_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+				g_s_left_motor.s_qep.sample_i16,
+				g_s_right_motor.s_qep.sample_i16
+			);
+		
+			if(g_timer_500u_u32 > 4000)	// 2 seconds
+				break;
+		}
+
+		g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+		g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+
+		g_timer_500u_u32 = 0;
+
+		// decelerate motor speed
+		while(g_s_left_motor.s_speed.curr_vel_q17 > _IQ17(0.0)
+		|| g_s_left_motor.s_speed.curr_vel_q17 > _IQ17(0.0))
+		{			
+			TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+				test_vel_i32,
+				_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
+				_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+				g_s_left_motor.s_qep.sample_i16,
+				g_s_right_motor.s_qep.sample_i16
+			);
+
+			if(g_timer_500u_u32 > 8000)	// 4 seconds. if running time exceeds this times then need to shutdown
+				break;
+		}
+
+		// shutdown solution is reset! haha
+		if(g_timer_500u_u32 > 8000)
+		{
+			TxPrintf("Neet to reset the device.\n");
+			VFDPrintf("resetPLS");
+
+			while(TRUE);
+		}
+
+		DEACTIVATE_MOTOR;
+
+		VFDPrintf("TestOver");
+		TxPrintf("Test is over.\n");
 	}
 	
 	DELAY_US(SW_DELAY);
@@ -470,7 +531,7 @@ static void _RunFunc(void)
 static void _CalibrateParamFunc(void)
 {
 	static void (*menu_func_[])() = {
-		_CalibrateSensorValue, _CalibrateMotorParam, _CalibrateRunningParam
+		CalibrateSensorValue, _CalibrateMotorParam, _CalibrateRunningParam
 	};
 
 	static const char *kMenuChar_[] = {

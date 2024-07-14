@@ -44,8 +44,8 @@ void Variable_Init(void)
 	g_motor_ki_u32 =
 	g_motor_kd_u32 = 0;
 
-	init_motor();
-	init_sensor();
+	InitMotor();
+	InitSensor();
 }
 
 void main(void)

@@ -123,9 +123,9 @@ void Init_ISR(void)
 		
 	EALLOW;  // This is needed to write to EALLOW protected registers
 
- 	PieVectTable.TINT0 = &sensor_timer0_ISR;	// sensor interrupt
-	PieVectTable.TINT2 = &motor_timer2_ISR;		// motor interrupt
-	PieVectTable.ADCINT = &adc_ISR; 			// ADC interrupt
+ 	PieVectTable.TINT0 = &IsrTimer0ForSensor;	// sensor interrupt
+	PieVectTable.TINT2 = &IsrTimer2ForMotor;		// motor interrupt
+	PieVectTable.ADCINT = &IsrAdc; 			// ADC interrupt
 
 	PieVectTable.SCIRXINTA = &scia_ISR;			//SCIA interrupt
 

@@ -28,9 +28,9 @@ inline void _InlineNewtonInterpolationFormula(NewtonInterpolationVariable *sp_fo
 	sp_formula->a2 = _IQ17div(temp0 - temp1, sp_formula->x2 - sp_formula->x0);
 }
 
-extern void init_sensor(void);
-extern interrupt void sensor_timer0_ISR(void);
-extern interrupt void adc_ISR(void);
-extern void set_sensor(void);
+extern void InitSensor(void);
+extern interrupt void IsrTimer0ForSensor(void);
+extern interrupt void IsrAdc(void);
+extern void CalibrateSensorValue(void);
 
 #endif

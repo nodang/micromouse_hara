@@ -110,6 +110,8 @@ __VARIABLE_EXT__ Uint32 g_timer_500u_u32;
 //                                 SENSOR                                   //
 //==========================================================================//
 
+#define SEN_NUM			8
+
 #define RBS		g_s_sen[0]	// right back side sensor
 #define RFS		g_s_sen[1]	// right front side sensor
 #define R45		g_s_sen[2]	// right 45 sensor
@@ -178,7 +180,7 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 #define MIN_VELO	-MAX_VELO
 
 #define MAX_ACC		16000
-#define MIN_ACC		0		// not meaningful
+#define MIN_ACC		1000		// not meaningful
 
 #define STANDBY_ON 	do {										\
 						GpioDataRegs.GPADAT.bit.GPIO22 = ON;	\
