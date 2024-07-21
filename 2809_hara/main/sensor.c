@@ -20,8 +20,6 @@
 
 
 //LOW PASS FILTER 필터 상수 및 계산 값...
-#define M_PI				3.1415926536 
-
 #define SENSOR_F_CUT			20//(20Hz)
 #define	SENSOR_F_SAMPLE			2000//(2KHz)
 #define	SENSOR_W_CUT			tan(M_PI*SENSOR_F_CUT/SENSOR_F_SAMPLE)
@@ -361,7 +359,7 @@ interrupt void IsrAdc(void)
 	{
 		ADC_channel_cnt = 0;
 		g_s_sen[SEN_NUM_R].value_u16 	= (Uint16)(sen_sum0_u32 >> 5); // divide 8 * 3
-		g_s_sen[SEN_NUM_L].value_u16 	= (Uint16)(sen_sum0_u32 >> 5); // divide 8 * 3
+		g_s_sen[SEN_NUM_L].value_u16 	= (Uint16)(sen_sum1_u32 >> 5); // divide 8 * 3
 		sen_sum0_u32 = sen_sum1_u32 = 0;
 		
 		//==================================================================//

@@ -317,7 +317,7 @@ static void _TestMotor(void)
 	_iq17 target_test_vel_q17 = _IQ17(0.0);
 
 	Uint16 test_acc_u16 = 0;
-	_iq17 target_test_acc_q17 = _IQ17(0.0);
+	_iq15 target_test_acc_q15 = _IQ15(0.0);
 
 	while(SW_U)
 	{
@@ -362,10 +362,10 @@ static void _TestMotor(void)
 		g_s_right_motor.s_speed.target_vel_q17 = target_test_vel_q17;
 		g_s_left_motor.s_speed.target_vel_q17 = target_test_vel_q17;
 
-		target_test_acc_q17 = _IQ17(test_acc_u16);
+		target_test_acc_q15 = _IQ15(test_acc_u16);
 		
-		g_s_right_motor.s_speed.target_vel_q17 = target_test_acc_q17;
-		g_s_left_motor.s_speed.target_vel_q17 = target_test_acc_q17;
+		g_s_right_motor.s_speed.accel_q15 = target_test_acc_q15;
+		g_s_left_motor.s_speed.accel_q15 = target_test_acc_q15;
 		
 		ACTIVATE_MOTOR;
 

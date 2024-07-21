@@ -30,6 +30,8 @@
 
 #define TIME_TICK 		_IQ30(0.0005)
 
+#define WHEEL_RADIUS	_IQ17(37.699111843)
+
 #define PULSE_TO_DIST	_IQ30(0.0092038847273138)
 // 바퀴지름 *PHI[75.398223686155037723103441198708]/(512*4)/기어비(4.)
 #define PULSE_TO_VEL	_IQ26(18.407769454627695)	
@@ -349,6 +351,40 @@ void MoveToMove(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 
 // Turn simulation made by python
 // https://colab.research.google.com/drive/1nX95cfM9avqoyKDrgAPEYbWbE7YZhOJ7#scrollTo=FaAzIS9wwqic&line=13&uniqifier=1
+void CalculateTurnVelocityAndDecelPointForTurn(_iq17 tar_th, _iq17 tar_rad, _iq17 tar_vel, _iq15 tar_acc, _iq17 curr_vel, _iq17 *decel_point)
+{
+	_iq15 inverse_acc;
+	_iq17 adj_timing_point, adj_th;	// accel end timing
+	_iq17 temp, beta, adj_rad, adj_left_vel, adj_right_vel;
+
+	inverse_acc = _IQ15div(_IQ15(1.0), tar_acc);
+	adj_timing_point = _IQ17mpy(tar_vel - curr_vel, 17, inverse_acc, 15);
+
+	temp = _IQ17mpy(adj_timing_point, adj_timing_point);
+	adj_th = _IQ17div(_IQ17mpyIQX(tar_acc, 15, temp, 17), ROBOT_WIDTH);
+
+	if(tar_th < _IQ17(0.0))	adj_th = -adj_th
+	
+	// calculate adjusted radius
+	beta = (_IQ17(M_PI) - tar_th) >> 1;		// alpha is curr_th
+	temp = _IQ17div(_IQ17sin(beta), _IQ17cos(beta));	// tan(beta)
+	adj_rad = _IQ17mpy(tar_th, _IQ17cos(adj_th) - _IQ17mpy(_IQ17sin(adj_th), temp);
+
+	if(tar_th > _IQ17(0.0))
+	{
+		adj_right_vel = tar_vel + _IQ17mpy(_IQ17div(tar_vel, adj_rad), WHEEL_RADIUS);
+		adj_left_vel = tar_vel - _IQ17mpy(_IQ17div(tar_vel, adj_rad), WHEEL_RADIUS);
+	}
+	else if(tar_th < _IQ17(0.0))
+	{
+		adj_right_vel = tar_vel - _IQ17mpy(_IQ17div(tar_vel, adj_rad), WHEEL_RADIUS);
+		adj_left_vel = tar_vel + _IQ17mpy(_IQ17div(tar_vel, adj_rad), WHEEL_RADIUS);
+	}
+	
+	*decel_point = (tar_th - adj_th)
+
+}
+
 void calc_target_velocity_for_turn(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _iq17 tar_v)
 {
 	_iq17 tar_vr, tar_vl, abs_diff_vr, abs_diff_vl, rdt, ldt, r_dist, l_dist, temp;
