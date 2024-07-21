@@ -348,7 +348,7 @@ void MoveToMove(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 	
 	StartCpuTimer2();
 }
-
+/*
 // Turn simulation made by python
 // https://colab.research.google.com/drive/1nX95cfM9avqoyKDrgAPEYbWbE7YZhOJ7#scrollTo=FaAzIS9wwqic&line=13&uniqifier=1
 void CalculateTurnVelocityAndDecelPointForTurn(_iq17 tar_th, _iq17 tar_rad, _iq17 tar_vel, _iq15 tar_acc, _iq17 curr_vel, _iq17 *decel_point)
@@ -384,7 +384,7 @@ void CalculateTurnVelocityAndDecelPointForTurn(_iq17 tar_th, _iq17 tar_rad, _iq1
 	*decel_point = (tar_th - adj_th)
 
 }
-
+*/
 void calc_target_velocity_for_turn(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _iq17 tar_v)
 {
 	_iq17 tar_vr, tar_vl, abs_diff_vr, abs_diff_vl, rdt, ldt, r_dist, l_dist, temp;
