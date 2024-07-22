@@ -97,8 +97,7 @@ static void _InitSideSensorFormulaVariable(void)
 		// Protect div(num, 0)
 		if(sp_formula->x0 == sp_formula->x1
 		|| sp_formula->x1 == sp_formula->x2
-		|| sp_formula->x2 == sp_formula->x0)
-			g_s_flags.est_dist_b = OFF;
+		|| sp_formula->x2 == sp_formula->x0);
 		else
 			_InlineNewtonInterpolationFormula(sp_formula);
 	}
@@ -126,8 +125,7 @@ static void _Init45SensorFormulaVariable(void)
 		// Protect div(num, 0)
 		if(sp_formula->x0 == sp_formula->x1
 		|| sp_formula->x1 == sp_formula->x2
-		|| sp_formula->x2 == sp_formula->x0)
-			g_s_flags.est_dist_b = OFF;
+		|| sp_formula->x2 == sp_formula->x0);
 		else
 			_InlineNewtonInterpolationFormula(sp_formula);
 	}
@@ -155,8 +153,7 @@ static void _InitFrontSensorFormulaVariable(void)
 		// Protect div(num, 0)
 		if(sp_formula->x0 == sp_formula->x1
 		|| sp_formula->x1 == sp_formula->x2
-		|| sp_formula->x2 == sp_formula->x0)
-			g_s_flags.est_dist_b = OFF;
+		|| sp_formula->x2 == sp_formula->x0);
 		else
 			_InlineNewtonInterpolationFormula(sp_formula);
 	}
@@ -171,8 +168,6 @@ static void _InitSensorFormulaVariable(void)
 		wall_inside_width = 168, wall_width = 180
 		robot_width = 81, robot_length = 108
 	*/
-	g_s_flags.est_dist_b = ON;	// Flag is set as OFF if some error is detected when it is initializing formula variables
-	
 	_InitSideSensorFormulaVariable();
 	_Init45SensorFormulaVariable();
 	_InitFrontSensorFormulaVariable();
@@ -370,15 +365,14 @@ interrupt void IsrAdc(void)
 		// Data filtering
 		g_s_sen[SEN_NUM_R].s_lpf.input_q17 = ((int32)(g_s_sen[SEN_NUM_R].value_u16)) << 17;
 		g_s_sen[SEN_NUM_R].s_lpf.output_q17 = _IQ17mpyIQX(SENSOR_Kb, 30, g_s_sen[SEN_NUM_R].s_lpf.input_previous_q17 + g_s_sen[SEN_NUM_R].s_lpf.input_q17, 17) 
-										 		- _IQ17mpyIQX(SENSOR_Ka, 30, g_s_sen[SEN_NUM_R].s_lpf.output_q17, 17);
-
+			- _IQ17mpyIQX(SENSOR_Ka, 30, g_s_sen[SEN_NUM_R].s_lpf.output_q17, 17);
 		// for position data buff
 		//buff0 = g_s_sen[SEN_NUM_R].s_lpf.output_q17;
 
 		// Data differences filtering
 		g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17 = g_s_sen[SEN_NUM_R].s_lpf.output_q17 - g_s_sen[SEN_NUM_R].s_lpf.output_previous_q17;
 		g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17 = _IQ17mpyIQX(SENSOR_Kb_DIFF, 30, g_s_sen[SEN_NUM_R].s_lpf_diff.input_previous_q17 + g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17, 17) 
-														- _IQ17mpyIQX(SENSOR_Ka_DIFF, 30, g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17, 17);
+			- _IQ17mpyIQX(SENSOR_Ka_DIFF, 30, g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17, 17);
 
 		// lpf filtered data are stored.
 		g_s_sen[SEN_NUM_R].s_lpf.input_previous_q17		= g_s_sen[SEN_NUM_R].s_lpf.input_q17;
@@ -386,7 +380,6 @@ interrupt void IsrAdc(void)
 
 		g_s_sen[SEN_NUM_R].s_lpf_diff.input_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17;
 		g_s_sen[SEN_NUM_R].s_lpf_diff.output_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17;		// Didn't be used
-
 
 		/*================== Left Sensor Data Filtering ===================*/
 		// Data filtering
@@ -412,20 +405,17 @@ interrupt void IsrAdc(void)
 		//==================================================================//
 		//				Estimate Distance according Sensor Data				//
 		//==================================================================//
-		if(g_s_flags.est_dist_b)
-		{
-			g_s_sen[SEN_NUM_R].s_dist.s_formula.x = g_s_sen[SEN_NUM_R].s_lpf.output_q17;
-			g_s_sen[SEN_NUM_R].s_dist.value_q17 = g_s_sen[SEN_NUM_R].s_dist.s_formula.a0
-				+ _IQ17mpy(g_s_sen[SEN_NUM_R].s_dist.s_formula.a1, g_s_sen[SEN_NUM_R].s_dist.s_formula.x - g_s_sen[SEN_NUM_R].s_dist.s_formula.x0)
-				+ _IQ17mpy(g_s_sen[SEN_NUM_R].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[SEN_NUM_R].s_dist.s_formula.x - g_s_sen[SEN_NUM_R].s_dist.s_formula.x0, 
-																			g_s_sen[SEN_NUM_R].s_dist.s_formula.x - g_s_sen[SEN_NUM_R].s_dist.s_formula.x1));
+		g_s_sen[SEN_NUM_R].s_dist.s_formula.x = g_s_sen[SEN_NUM_R].s_lpf.output_q17;
+		g_s_sen[SEN_NUM_R].s_dist.value_q17 = g_s_sen[SEN_NUM_R].s_dist.s_formula.a0
+			+ _IQ17mpy(g_s_sen[SEN_NUM_R].s_dist.s_formula.a1, g_s_sen[SEN_NUM_R].s_dist.s_formula.x - g_s_sen[SEN_NUM_R].s_dist.s_formula.x0)
+			+ _IQ17mpy(g_s_sen[SEN_NUM_R].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[SEN_NUM_R].s_dist.s_formula.x - g_s_sen[SEN_NUM_R].s_dist.s_formula.x0, 
+																		g_s_sen[SEN_NUM_R].s_dist.s_formula.x - g_s_sen[SEN_NUM_R].s_dist.s_formula.x1));
 
-			g_s_sen[SEN_NUM_L].s_dist.s_formula.x = g_s_sen[SEN_NUM_L].s_lpf.output_q17;
-			g_s_sen[SEN_NUM_L].s_dist.value_q17 = g_s_sen[SEN_NUM_L].s_dist.s_formula.a0
-				+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a1, g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0)
-				+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0, 
-																			g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x1));
-		}
+		g_s_sen[SEN_NUM_L].s_dist.s_formula.x = g_s_sen[SEN_NUM_L].s_lpf.output_q17;
+		g_s_sen[SEN_NUM_L].s_dist.value_q17 = g_s_sen[SEN_NUM_L].s_dist.s_formula.a0
+			+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a1, g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0)
+			+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0, 
+																		g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x1));
 		//==================================================================//
 		if(g_sensor_num_u16 < SEN_NUM_HALF_S0)
 			g_sensor_num_u16++;
@@ -438,65 +428,60 @@ interrupt void IsrAdc(void)
 #if SENSOR_ISR_DEBUG
 		GpioDataRegs.GPACLEAR.bit.GPIO27 = 1;
 #endif
-
 	}
-	
 }
 #endif
 
 static void _CalibrateSideSensors(void)
 {
-	VFDPrintf("RIGHT ->");
-	while(SW_U);
-	while(!SW_U)
-	{
-		// Right close
-		if(RFS.s_dist.s_formula.x0 < RFS.s_lpf.output_q17)
-			RFS.s_dist.s_formula.x0 = RFS.s_lpf.output_q17;
-		if(RBS.s_dist.s_formula.x0 < RBS.s_lpf.output_q17)
-			RBS.s_dist.s_formula.x0 = RBS.s_lpf.output_q17;
-		
-		// Left far
-		if(LFS.s_dist.s_formula.x2 < LFS.s_lpf.output_q17)
-			LFS.s_dist.s_formula.x2 = LFS.s_lpf.output_q17;
-		if(LBS.s_dist.s_formula.x2 < LBS.s_lpf.output_q17)
-			LBS.s_dist.s_formula.x2 = LBS.s_lpf.output_q17;
+	while(SW_D)
+	{	
+		VFDPrintf("->> %4lu", 
+			(RFS.value_u16 + RBS.value_u16) >> 1);
 	}
+	// Right close
+	RFS.s_dist.s_formula.x0 = RFS.s_lpf.output_q17;
+	RBS.s_dist.s_formula.x0 = RBS.s_lpf.output_q17;
+	
+	// Left far
+	LFS.s_dist.s_formula.x2 = LFS.s_lpf.output_q17;
+	LBS.s_dist.s_formula.x2 = LBS.s_lpf.output_q17;
 
-	VFDPrintf(" MIDDLE ");
-	while(SW_U);
-	while(!SW_U)
+	VFDPrintf("==SAVE==");
+	while(!SW_D);
+
+	while(SW_D)
 	{
-		// Right
-		if(RFS.s_dist.s_formula.x1 < RFS.s_lpf.output_q17)
-			RFS.s_dist.s_formula.x1 = RFS.s_lpf.output_q17;
-		if(RBS.s_dist.s_formula.x1 < RBS.s_lpf.output_q17)
-			RBS.s_dist.s_formula.x1 = RBS.s_lpf.output_q17;
-		
-		// Left
-		if(LFS.s_dist.s_formula.x1 < LFS.s_lpf.output_q17)
-			LFS.s_dist.s_formula.x1 = LFS.s_lpf.output_q17;
-		if(LBS.s_dist.s_formula.x1 < LBS.s_lpf.output_q17)
-			LBS.s_dist.s_formula.x1 = LBS.s_lpf.output_q17;
+		VFDPrintf("%-4lu%4lu",
+			(LFS.value_u16 + LBS.value_u16) >> 1,
+			(RFS.value_u16 + RBS.value_u16) >> 1);
 	}
+	// Right
+	RFS.s_dist.s_formula.x1 = RFS.s_lpf.output_q17;
+	RBS.s_dist.s_formula.x1 = RBS.s_lpf.output_q17;
+	
+	// Left
+	LFS.s_dist.s_formula.x1 = LFS.s_lpf.output_q17;
+	LBS.s_dist.s_formula.x1 = LBS.s_lpf.output_q17;
+	
+	VFDPrintf("==SAVE==");
+	while(!SW_D);
 
-
-	VFDPrintf("<-  LEFT");
-	while(SW_U);
-	while(!SW_U)
+	while(SW_D)
 	{
-		// Right far
-		if(RFS.s_dist.s_formula.x2 < RFS.s_lpf.output_q17)
-			RFS.s_dist.s_formula.x2 = RFS.s_lpf.output_q17;
-		if(RBS.s_dist.s_formula.x2 < RBS.s_lpf.output_q17)
-			RBS.s_dist.s_formula.x2 = RBS.s_lpf.output_q17;
-		
-		// Left close
-		if(LFS.s_dist.s_formula.x0 < LFS.s_lpf.output_q17)
-			LFS.s_dist.s_formula.x0 = LFS.s_lpf.output_q17;
-		if(LBS.s_dist.s_formula.x0 < LBS.s_lpf.output_q17)
-			LBS.s_dist.s_formula.x0 = LBS.s_lpf.output_q17;
+		VFDPrintf("<<- %4lu", 
+			(LFS.value_u16 + LBS.value_u16) >> 1);
 	}
+	// Right far
+	RFS.s_dist.s_formula.x2 = RFS.s_lpf.output_q17;
+	RBS.s_dist.s_formula.x2 = RBS.s_lpf.output_q17;
+	
+	// Left close
+	LFS.s_dist.s_formula.x0 = LFS.s_lpf.output_q17;
+	LBS.s_dist.s_formula.x0 = LBS.s_lpf.output_q17;
+
+	VFDPrintf("==SAVE==");
+	while(!SW_D);
 
 	TxPrintf("LBS: x0 %4ld | x1 %4ld | x2 %4ld\n",
 				LBS.s_dist.s_formula.x0 >> 17,
@@ -517,8 +502,6 @@ static void _CalibrateSideSensors(void)
 				RBS.s_dist.s_formula.x0 >> 17,
 							RBS.s_dist.s_formula.x0 >> 17,
 										RBS.s_dist.s_formula.x0 >> 17);
-
-	
 }
 
 static void _CalibrateDiagonalAndFrontSensor(void)
@@ -526,9 +509,9 @@ static void _CalibrateDiagonalAndFrontSensor(void)
 	_iq17 gone_dist;
 
 	g_timer_500u_u32 = 0;
-	while(g_timer_500u_u32 <= 2000);	// wait 1 second
+	while(g_timer_500u_u32 <= 3000);	// wait 1.5 second
 
-	MoveToStop(_IQ17(300.0), _IQ15(3000.0), _IQ17(140.0));
+	MoveToStop(_IQ17(300.0), _IQ15(MIN_ACC), _IQ17(-140.0));
 
 	while(g_s_left_motor.s_dist.remaining_q17 > _IQ17(0.0) || g_s_right_motor.s_dist.remaining_q17 > _IQ17(0.0))
 	{
@@ -537,47 +520,35 @@ static void _CalibrateDiagonalAndFrontSensor(void)
 		// Diagonal sensor
 		if(gone_dist <= DIAGONAL_Y0)
 		{
-			if(R45.s_dist.s_formula.x0 < R45.s_lpf.output_q17)
-				R45.s_dist.s_formula.x0 = R45.s_lpf.output_q17;
-			if(L45.s_dist.s_formula.x0 < L45.s_lpf.output_q17)
-				L45.s_dist.s_formula.x0 = L45.s_lpf.output_q17;
+			R45.s_dist.s_formula.x0 = R45.s_lpf.output_q17;
+			L45.s_dist.s_formula.x0 = L45.s_lpf.output_q17;
 		}
 		else if(gone_dist <= DIAGONAL_Y1)
 		{
-			if(R45.s_dist.s_formula.x1 < R45.s_lpf.output_q17)
-				R45.s_dist.s_formula.x1 = R45.s_lpf.output_q17;
-			if(L45.s_dist.s_formula.x1 < L45.s_lpf.output_q17)
-				L45.s_dist.s_formula.x1 = L45.s_lpf.output_q17;
+			R45.s_dist.s_formula.x1 = R45.s_lpf.output_q17;
+			L45.s_dist.s_formula.x1 = L45.s_lpf.output_q17;
 		}
 		else if(gone_dist <= DIAGONAL_Y2)
 		{
-			if(R45.s_dist.s_formula.x2 < R45.s_lpf.output_q17)
-				R45.s_dist.s_formula.x2 = R45.s_lpf.output_q17;
-			if(L45.s_dist.s_formula.x2 < L45.s_lpf.output_q17)
-				L45.s_dist.s_formula.x2 = L45.s_lpf.output_q17;
+			R45.s_dist.s_formula.x2 = R45.s_lpf.output_q17;
+			L45.s_dist.s_formula.x2 = L45.s_lpf.output_q17;
 		}
 
 		// Front sensor
 		if(gone_dist <= FRONT_Y0)
 		{
-			if(RF.s_dist.s_formula.x0 < RF.s_lpf.output_q17)
-				RF.s_dist.s_formula.x0 = RF.s_lpf.output_q17;
-			if(LF.s_dist.s_formula.x0 < LF.s_lpf.output_q17)
-				LF.s_dist.s_formula.x0 = LF.s_lpf.output_q17;
+			RF.s_dist.s_formula.x0 = RF.s_lpf.output_q17;
+			LF.s_dist.s_formula.x0 = LF.s_lpf.output_q17;
 		}
 		else if(gone_dist <= FRONT_Y1)
 		{
-			if(RF.s_dist.s_formula.x1 < RF.s_lpf.output_q17)
-				RF.s_dist.s_formula.x1 = RF.s_lpf.output_q17;
-			if(LF.s_dist.s_formula.x1 < LF.s_lpf.output_q17)
-				LF.s_dist.s_formula.x1 = LF.s_lpf.output_q17;
+			RF.s_dist.s_formula.x1 = RF.s_lpf.output_q17;
+			LF.s_dist.s_formula.x1 = LF.s_lpf.output_q17;
 		}
 		else if(gone_dist <= FRONT_Y2)
 		{
-			if(RF.s_dist.s_formula.x2 < RF.s_lpf.output_q17)
-				RF.s_dist.s_formula.x2 = RF.s_lpf.output_q17;
-			if(LF.s_dist.s_formula.x2 < LF.s_lpf.output_q17)
-				LF.s_dist.s_formula.x2 = LF.s_lpf.output_q17;
+			RF.s_dist.s_formula.x2 = RF.s_lpf.output_q17;
+			LF.s_dist.s_formula.x2 = LF.s_lpf.output_q17;
 		}
 	}
 
@@ -605,17 +576,16 @@ static void _CalibrateDiagonalAndFrontSensor(void)
 
 void CalibrateSensorValue(void)
 {
-	memset((void *)g_s_sen, 0x00, sizeof(g_s_sen));
-	g_sensor_num_u16 = 0;
-	g_s_flags.est_dist_b = OFF;	// If sensor calibration data not exist, calcuation can be error.
+	InitSensor();
 	
 	ACTIVATE_SENSOR;
-	_CalibrateSideSensors();		// Non-Auto, so need only sensor
+	_CalibrateSideSensors();			// Non-Auto, so need only sensor
 	DEACTIVATE_SENSOR;
 
 	VFDPrintf("45nFRONT");
-	while(SW_U);
-	DELAY_US(SW_DELAY);
+	while(!SW_D);	// hold
+
+	while(SW_D);	// start
 
 	ACTIVATE_SYSTEM;
 	_CalibrateDiagonalAndFrontSensor();	// Auto, so need motor & sensor

@@ -55,6 +55,7 @@ static void _SensorValue(void)
 #define CHECK_FLAG_ARRAY_NUM 9
 static void _FlagArray(void)
 {
+/*
 	Uint16 pass_criteria[] = { FALSE };
 	const char *kVfdChar[] = { "EstD" };
 	
@@ -85,7 +86,8 @@ static void _FlagArray(void)
 		if(!SW_R)		{ DELAY_US(SW_DELAY);	sw_cnt++; }
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	sw_cnt--; }
 	}
-	
+*/
+	VFDPrintf("made yet");
 	DELAY_US(SW_DELAY);
 }
 
@@ -367,12 +369,10 @@ static void _TestMotor(void)
 		g_s_right_motor.s_speed.accel_q15 = target_test_acc_q15;
 		g_s_left_motor.s_speed.accel_q15 = target_test_acc_q15;
 		
-		ACTIVATE_MOTOR;
-
-		g_timer_500u_u32 = 0;				
+		ACTIVATE_MOTOR;			
 
 		// accelerate motor speed
-		while(TRUE)
+		while(SW_U)
 		{
 			TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
 				test_vel_i32,
@@ -381,15 +381,10 @@ static void _TestMotor(void)
 				g_s_left_motor.s_qep.sample_i16,
 				g_s_right_motor.s_qep.sample_i16
 			);
-		
-			if(g_timer_500u_u32 > 4000)	// 2 seconds
-				break;
 		}
 
 		g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
 		g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
-
-		g_timer_500u_u32 = 0;
 
 		// decelerate motor speed
 		while(g_s_left_motor.s_speed.curr_vel_q17 > _IQ17(0.0)
@@ -402,24 +397,14 @@ static void _TestMotor(void)
 				g_s_left_motor.s_qep.sample_i16,
 				g_s_right_motor.s_qep.sample_i16
 			);
-
-			if(g_timer_500u_u32 > 8000)	// 4 seconds. if running time exceeds this times then need to shutdown
-				break;
-		}
-
-		// shutdown solution is reset! haha
-		if(g_timer_500u_u32 > 8000)
-		{
-			TxPrintf("Neet to reset the device.\n");
-			VFDPrintf("resetPLS");
-
-			while(TRUE);
 		}
 
 		DEACTIVATE_MOTOR;
 
 		VFDPrintf("TestOver");
 		TxPrintf("Test is over.\n");
+
+		while(!SW_U);
 	}
 	
 	DELAY_US(SW_DELAY);

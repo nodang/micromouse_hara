@@ -110,7 +110,7 @@ void InitGpio(void)
 	GpioCtrlRegs.GPBMUX1.bit.GPIO32 = 0;	dir	0
 //   IO33 - Buzzer
 	GpioCtrlRegs.GPBMUX1.bit.GPIO33 = 0;	dir	1
-//   IO34 - R_LED
+//   IO34 - R_LED(Boot Switch)
 	GpioCtrlRegs.GPBMUX1.bit.GPIO34 = 0;	dir	1
 //mux 	0000 0000 / 0000 0000 / 0000 0000 / 0000 0000/ */
 	GpioCtrlRegs.GPBMUX1.all = 0x0;

@@ -28,8 +28,6 @@
 
 #define PWM_CONVERT		_IQ30(0.22222222)// pwm 2kHz == pid_output_maxmin * pwm_convert
 
-#define TIME_TICK 		_IQ30(0.0005)
-
 #define WHEEL_RADIUS	_IQ17(37.699111843)
 
 #define PULSE_TO_DIST	_IQ30(0.0092038847273138)
@@ -101,10 +99,9 @@ interrupt void IsrTimer2ForMotor(void)
 	// 받은 값을 int16으로 변환한다.
 	// transform the sample type to int16
 	if(_sp_r_qep->sample_u16 >= ENCODER_RESOLUTION)
-		_sp_r_qep->sample_i16 = (int16)_sp_r_qep->sample_u16 - ENCODER_RESOLUTION_x2;
+		_sp_r_qep->sample_i16 = ENCODER_RESOLUTION_x2 - ((int16)_sp_r_qep->sample_u16);
 	else 
-		_sp_r_qep->sample_i16 = (int16)_sp_r_qep->sample_u16;
-	_sp_r_qep->sample_i16 = -_sp_r_qep->sample_i16;
+		_sp_r_qep->sample_i16 = -((int16)_sp_r_qep->sample_u16);
 
 	if(_sp_l_qep->sample_u16 >= ENCODER_RESOLUTION)
 		_sp_l_qep->sample_i16 = (int16)_sp_l_qep->sample_u16 - ENCODER_RESOLUTION_x2;
@@ -242,7 +239,6 @@ interrupt void IsrTimer2ForMotor(void)
 
 	g_s_left_motor.pid_output_q17 += g_s_left_motor.proportional_term_q17 + g_s_left_motor.derivative_term_q17 + g_s_left_motor.integral_term_q17;
 
-
 	// 
 	if(g_s_flags.motor_pwm_b)
 	{
@@ -259,11 +255,10 @@ interrupt void IsrTimer2ForMotor(void)
 		{
 			if(g_s_right_motor.pid_output_q17 < MIN_PID_OUT)
 				g_s_right_motor.pid_output_q17 = MIN_PID_OUT;
-			g_s_right_motor.pid_output_q17 = -g_s_right_motor.pid_output_q17;
 
 			EPwm1Regs.AQCTLA.bit.ZRO = AQ_SET;
 			EPwm1Regs.AQCTLB.bit.ZRO = AQ_CLEAR;
-			EPwm1Regs.CMPA.half.CMPA = (Uint16)(_IQ17mpyIQX(g_s_right_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
+			EPwm1Regs.CMPA.half.CMPA = (Uint16)(_IQ17mpyIQX(-g_s_right_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 		
 		if( g_s_left_motor.pid_output_q17 >= _IQ17(0.0) )
@@ -279,11 +274,10 @@ interrupt void IsrTimer2ForMotor(void)
 		{
 			if(g_s_left_motor.pid_output_q17 < MIN_PID_OUT )
 				g_s_left_motor.pid_output_q17 = MIN_PID_OUT;
-			g_s_left_motor.pid_output_q17 = -g_s_left_motor.pid_output_q17;
 			
 			EPwm2Regs.AQCTLA.bit.ZRO = AQ_CLEAR;
 			EPwm2Regs.AQCTLB.bit.ZRO = AQ_SET;
-			EPwm2Regs.CMPB = (Uint16)(_IQ17mpyIQX(g_s_left_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
+			EPwm2Regs.CMPB = (Uint16)(_IQ17mpyIQX(-g_s_left_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 	}
 #endif
@@ -322,6 +316,9 @@ void MoveToStop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
 	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = _IQ17(0.0);
 	_sp_l_speed->decel_b = _sp_r_speed->decel_b = ON;
+
+	_sp_r_dist->remaining_q17 = _IQ17abs(_sp_r_dist->target_q17 - _sp_r_dist->gone_q17);
+	_sp_l_dist->remaining_q17 = _IQ17abs(_sp_l_dist->target_q17 - _sp_l_dist->gone_q17);
 	
 	StartCpuTimer2();
 }
@@ -345,6 +342,9 @@ void MoveToMove(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
 	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = dec_vel;
 	_sp_l_speed->decel_b = _sp_r_speed->decel_b = ON;
+
+	_sp_r_dist->remaining_q17 = _IQ17abs(_sp_r_dist->target_q17 - _sp_r_dist->gone_q17);
+	_sp_l_dist->remaining_q17 = _IQ17abs(_sp_l_dist->target_q17 - _sp_l_dist->gone_q17);
 	
 	StartCpuTimer2();
 }
