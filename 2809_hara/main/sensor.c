@@ -308,7 +308,7 @@ interrupt void IsrAdc(void)
 {
 	static Uint16 ADC_channel_cnt = 0;
 	static Uint32 sen_sum0_u32 = 0, sen_sum1_u32 = 0;
-	_iq17 buff0, buff1;
+	//_iq17 buff0, buff1;
 
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 
@@ -388,7 +388,7 @@ interrupt void IsrAdc(void)
 			- _IQ17mpyIQX(SENSOR_Ka, 30, g_s_sen[SEN_NUM_L].s_lpf.output_q17, 17);
 
 		// for position data buff
-		//buff0 = g_s_sen[SEN_NUM_L].s_lpf.output_q17;
+		//buff1 = g_s_sen[SEN_NUM_L].s_lpf.output_q17;
 
 		// Data differences filtering
 		g_s_sen[SEN_NUM_L].s_lpf_diff.input_q17 = g_s_sen[SEN_NUM_L].s_lpf.output_q17 - g_s_sen[SEN_NUM_L].s_lpf.output_previous_q17;
@@ -576,19 +576,36 @@ static void _CalibrateDiagonalAndFrontSensor(void)
 
 void CalibrateSensorValue(void)
 {
-	InitSensor();
+	Uint16 flag = 0;
 	
-	ACTIVATE_SENSOR;
-	_CalibrateSideSensors();			// Non-Auto, so need only sensor
-	DEACTIVATE_SENSOR;
+	InitSensor();
 
-	VFDPrintf("45nFRONT");
-	while(!SW_D);	// hold
+	VFDPrintf("S< Av >F");
+	while(TRUE)
+	{
+		if(SW_R)		{	flag = 2;	break;	}
+		else if(SW_L)	{	flag = 1;	break;	}
+		else if(SW_D)	{	flag = 0;	break;	}
+	}
+	while(!SW_R || !SW_L || !SW_D);
 
-	while(SW_D);	// start
+	if(flag == 0 || flag == 2)
+	{
+		VFDPrintf("Set Side");
+		while(SW_D);
+	
+		ACTIVATE_SENSOR;
+		_CalibrateSideSensors();			// Non-Auto, so need only sensor
+		DEACTIVATE_SENSOR;
+	}
+	if(flag == 0 || flag == 1)
+	{	
+		VFDPrintf("SetFront");
+		while(SW_D);	// start
 
-	ACTIVATE_SYSTEM;
-	_CalibrateDiagonalAndFrontSensor();	// Auto, so need motor & sensor
-	DEACTIVATE_SYSTEM;
+		ACTIVATE_SYSTEM;
+		_CalibrateDiagonalAndFrontSensor();	// Auto, so need motor & sensor
+		DEACTIVATE_SYSTEM;
+	}
 }
 

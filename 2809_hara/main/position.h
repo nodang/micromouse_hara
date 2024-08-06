@@ -16,7 +16,7 @@
 #define __POSITION_H__
 
 extern void init_position(void);
-extern void estimate_position_used_input(void);
+extern void estimate_position_used_input(PositionVariable *sp_pos);
 extern void estimate_position_used_sensor(void);
 extern void adjust_position(void);
 

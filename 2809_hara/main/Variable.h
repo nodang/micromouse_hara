@@ -305,9 +305,96 @@ typedef volatile struct
 			w_q17;
 }PositionVariable;
 
-__VARIABLE_EXT__ PositionVariable	g_s_epi,
-									g_s_eps;
+__VARIABLE_EXT__ PositionVariable	g_s_epi;
 
+
+//==========================================================================//
+//                                ALGORITHM                                 //
+//==========================================================================//
+
+#define SIDE		16
+#define MAP_SIZE	256
+
+#define NORTH		0x1
+#define EAST		0x2
+#define SOUTH		0x4
+#define WEST		0x8
+
+#define FIND_MAP_INDEX(x, y)	(((x << 4) & 0xf0) | (y & 0x0f))
+#define FIND_X_FROM_INDEX(ind)	((ind & 0xf0) >> 4)
+#define FIND_Y_FROM_INDEX(ind)	(ind & 0x0f)
+
+#define MAX_COST_8UL	255
+
+typedef union {
+	int16 all;
+	struct {
+		int16 north:1;
+		int16 east:1;
+		int16 south:1;
+		int16 west:1;
+		int16 rsvd:4;
+	}bit;
+}Map;
+/*
+typedef struct {
+	int16 x;
+	int16 y;
+}Coord;
+*/
+typedef struct {
+	int16 pos;
+	int16 dir;
+}Robot;
+
+typedef struct {
+	int16 arr[MAP_SIZE];
+	int16 ind;
+}QueueType;
+
+typedef struct {
+	int16 cost[MAP_SIZE + 1];
+	int16 node[MAP_SIZE + 1];
+	int16 heap_size;
+}HeapType;
+
+enum GoalNode
+{
+	HOME = 0x00,
+
+	GOAL_1 = 0x77,
+	GOAL_2 = 0x87,
+	GOAL_3 = 0x78,
+	GOAL_4 = 0x88
+};
+
+enum CoordinateDifference
+{
+	PLUS_X = 0x10,
+	PLUS_Y = 0x01,
+
+	MINUS_X = -0x10,
+	MINUS_Y = -0x01,
+
+	PLUS_X_Y = 0x11,
+	PLUS_X_MINUS_Y = 0x0f,
+	MINUS_X_PLUS_Y = -0x0f,
+	MINUS_X_Y = -0x11
+};
+
+__VARIABLE_EXT__ HeapType pq;
+__VARIABLE_EXT__ Map map[MAP_SIZE];	//origin_map[MAP_SIZE]
+__VARIABLE_EXT__ QueueType queue, path;
+__VARIABLE_EXT__ Robot robot;
+
+__VARIABLE_EXT__ int16 visit[MAP_SIZE], closed[MAP_SIZE];
+// cost function = heuristics function + gone function
+__VARIABLE_EXT__ int16 cost[MAP_SIZE], g[MAP_SIZE], h[MAP_SIZE];
+
+__VARIABLE_EXT__ int16 past_node[MAP_SIZE], goal_node[4];
+
+// the order of diff matches north, east, south, west.
+__VARIABLE_EXT__ int16 diff[4], diff_eight[8];
 
 
 

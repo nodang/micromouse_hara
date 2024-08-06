@@ -199,9 +199,9 @@ interrupt void IsrTimer2ForMotor(void)
 	// 자세 보정
 	if(g_s_flags.adj_pos_b)
 	{
-		estimate_position_used_input();
-		estimate_position_used_sensor();
-		adjust_position();
+		//estimate_position_used_input();
+		//estimate_position_used_sensor();
+		//adjust_position();
 	}
 
 	// 모터 PID
@@ -291,7 +291,7 @@ interrupt void IsrTimer2ForMotor(void)
 	utimetick++;
 #endif
 	// initialize motor interrupt flag
-	CpuTimer2Regs.TCR.bit.TRB = 1;
+	//CpuTimer2Regs.TCR.bit.TRB = 1;
 
 	// sensor interrupt start -- sensor shoot
 	StartCpuTimer0();

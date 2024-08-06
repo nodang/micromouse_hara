@@ -66,20 +66,20 @@ void ReadSensorData()
 
 	for(j = 0; j < SEN_NUM; j++)
 	{
-		g_s_sen[j].s_dist.s_formula.x0 = read_arr[i++] << 0;
-		g_s_sen[j].s_dist.s_formula.x0 |= read_arr[i++] << 8;
-		g_s_sen[j].s_dist.s_formula.x0 |= read_arr[i++] << 16;
-		g_s_sen[j].s_dist.s_formula.x0 |= read_arr[i++] << 24;
+		g_s_sen[j].s_dist.s_formula.x0 =  ((Uint32)read_arr[i++]) << 0;
+		g_s_sen[j].s_dist.s_formula.x0 |= ((Uint32)read_arr[i++]) << 8;
+		g_s_sen[j].s_dist.s_formula.x0 |= ((Uint32)read_arr[i++]) << 16;
+		g_s_sen[j].s_dist.s_formula.x0 |= ((Uint32)read_arr[i++]) << 24;
 
-		g_s_sen[j].s_dist.s_formula.x1 = read_arr[i++] << 0;
-		g_s_sen[j].s_dist.s_formula.x1 |= read_arr[i++] << 8;
-		g_s_sen[j].s_dist.s_formula.x1 |= read_arr[i++] << 16;
-		g_s_sen[j].s_dist.s_formula.x1 |= read_arr[i++] << 24;
+		g_s_sen[j].s_dist.s_formula.x1 =  ((Uint32)read_arr[i++]) << 0;
+		g_s_sen[j].s_dist.s_formula.x1 |= ((Uint32)read_arr[i++]) << 8;
+		g_s_sen[j].s_dist.s_formula.x1 |= ((Uint32)read_arr[i++]) << 16;
+		g_s_sen[j].s_dist.s_formula.x1 |= ((Uint32)read_arr[i++]) << 24;
 
-		g_s_sen[j].s_dist.s_formula.x2 = read_arr[i++] << 0;
-		g_s_sen[j].s_dist.s_formula.x2 |= read_arr[i++] << 8;
-		g_s_sen[j].s_dist.s_formula.x2 |= read_arr[i++] << 16;
-		g_s_sen[j].s_dist.s_formula.x2 |= read_arr[i++] << 24;
+		g_s_sen[j].s_dist.s_formula.x2 =  ((Uint32)read_arr[i++]) << 0;
+		g_s_sen[j].s_dist.s_formula.x2 |= ((Uint32)read_arr[i++]) << 8;
+		g_s_sen[j].s_dist.s_formula.x2 |= ((Uint32)read_arr[i++]) << 16;
+		g_s_sen[j].s_dist.s_formula.x2 |= ((Uint32)read_arr[i++]) << 24;
 	}
 }
 

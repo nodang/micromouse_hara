@@ -150,9 +150,10 @@ typedef long double     float64;
 #include "..\main\motor.h"
 #include "..\main\position.h"
 #include "..\main\rom.h" 
-#include "..\main\search.h"
-#include "..\main\fastrun.h"
-#include "..\main\extremerun.h"
+#include "..\main\race.h"
+#include "..\main\tools.h"
+#include "..\main\algo.h"
+
 
 //#include "..\main\monster.h"
 

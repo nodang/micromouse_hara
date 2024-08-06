@@ -464,8 +464,8 @@ static void _TestAlgorithm(void)
 
 static void _SearchRun(void)
 {	
-	VFDPrintf("made yet");
-	DELAY_US(250000);
+	init_map();
+	search_race();
 }
 
 static void _FastRun(void)

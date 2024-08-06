@@ -22,7 +22,7 @@ TARGET = a_hara
 PATH = ..
 #----- C source files -----
 INCLUDE = $(PATH)\include
-SRC = DSP280x_Adc.c DSP280x_EPwm.c DSP280x_EQep.c DSP280x_CpuTimers.c DSP280x_DefaultIsr.c DSP280x_GlobalVariableDefs.c DSP280x_Gpio.c DSP280x_MemCopy.c DSP280x_PieCtrl.c DSP280x_PieVect.c DSP280x_Sci.c DSP280x_Spi.c DSP280x_SysCtrl.c VFD.c Main.c Menu.c Motor.c Sensor.c Position.c Rom.c Search.c Fastrun.c Extremerun.c
+SRC = DSP280x_Adc.c DSP280x_EPwm.c DSP280x_EQep.c DSP280x_CpuTimers.c DSP280x_DefaultIsr.c DSP280x_GlobalVariableDefs.c DSP280x_Gpio.c DSP280x_MemCopy.c DSP280x_PieCtrl.c DSP280x_PieVect.c DSP280x_Sci.c DSP280x_Spi.c DSP280x_SysCtrl.c VFD.c Main.c Menu.c Motor.c Sensor.c Position.c Rom.c Race.c Tools.c Algo.c
 
 #----- ASM source files -----
 ASRC =DSP280x_CodeStartBranch.asm DSP280x_usDelay.asm
