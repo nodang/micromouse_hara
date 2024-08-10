@@ -1,0 +1,45 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: c28x_build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  run_command:
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.ACTION_TOKEN }}
+        submodules: true
+    
+    - name: permission
+      run: chmod -R +x ./main ./include ./Compiler
+      shell: bash
+      working-directory: 2809_MICROMOUSE/
+
+    - name: build
+      run: |
+        ../Compiler/bin/make.exe
+        ../Compiler/bin/hex2000.exe $TARGET_BAT.out -o $TARGET_BAT.hex -map $TARGET_BAT.map -i -datawidth 16 -memwidth 16 -romwidth 16
+        mkdir ../build
+        mv *.out *.map *.hex ../build
+      shell: bash
+      working-directory: 2809_MICROMOUSE/main/
+      env:
+        TARGET_BAT: a_hara
+        AUTO_BUILD_ENABLE: YES
+
+    - name: zip release files
+      uses: actions/upload-artifact@v4
+      with:
+        name: c28x-build
+        path: build/

@@ -16,12 +16,12 @@
 # By RealSYS	2003/9/18
 
 #----- out file name -----
-TARGET = a_hara
+TARGET = $(TARGET_BAT)
 
 #----- path_dir -------
 PATH = ..
 #----- C source files -----
-INCLUDE = $(PATH)\include
+#INCLUDE = $(PATH)\include
 SRC = DSP280x_Adc.c DSP280x_EPwm.c DSP280x_EQep.c DSP280x_CpuTimers.c DSP280x_DefaultIsr.c DSP280x_GlobalVariableDefs.c DSP280x_Gpio.c DSP280x_MemCopy.c DSP280x_PieCtrl.c DSP280x_PieVect.c DSP280x_Sci.c DSP280x_Spi.c DSP280x_SysCtrl.c VFD.c Main.c Menu.c Motor.c Sensor.c Position.c Rom.c Race.c Tools.c Algo.c
 
 #----- ASM source files -----
@@ -31,10 +31,19 @@ ASRC =DSP280x_CodeStartBranch.asm DSP280x_usDelay.asm
 CMDFILE	= DSP280x_Headers_nonBIOS.cmd F2808.cmd
 
 #----- Compiler directory & exe files -----
+ifeq ($(AUTO_BUILD_ENABLE),NO)
+INCLUDE = $(PATH)\include
 PROG_DIR = $(PATH)\Compiler\bin
 CC      = $(PROG_DIR)\cl2000.exe
 ASM     = $(PROG_DIR)\asm2000.exe
 LNK     = $(PROG_DIR)\lnk2000.exe
+else
+INCLUDE = $(PATH)/include
+PROG_DIR = $(PATH)/Compiler/bin
+CC      = $(PROG_DIR)/cl2000.exe
+ASM     = $(PROG_DIR)/asm2000.exe
+LNK     = $(PROG_DIR)/lnk2000.exe
+endif
 
 OBJS = $(SRC:.c=.obj) $(ASRC:.asm=.obj)
 

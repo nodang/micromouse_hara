@@ -1,8 +1,9 @@
-./title _666_cpu(TMS2808)_init_user_compile
+./title TMS320F2809 UserFile Compile
 color 00
 
 set PATH_BAT=..\Compiler
 set TARGET_BAT=a_hara
+set AUTO_BUILD_ENABLE=NO
 
 cls
 
