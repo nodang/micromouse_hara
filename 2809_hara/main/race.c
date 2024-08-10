@@ -16,6 +16,9 @@
 #include "DSP280x_Device.h"     // DSP280x Headerfile Include File
 #include "DSP280x_Examples.h"   // DSP280x Examples Include File
 
+#pragma CODE_SECTION(_to_move_if_possible, "ramfuncs2");
+#pragma CODE_SECTION(search_race, "ramfuncs2");
+#pragma CODE_SECTION(fast_race, "ramfuncs2");
 static void _to_move_if_possible()
 {
 	// decide direction from position difference
@@ -123,10 +126,7 @@ void fast_race()
 		// 현재 위치에서 비용 계산 및 경로 계획
 		if (path.ind == 0)
 			calculate_cost_to_fast_home();
-
-		// Functions related to drawing
-		//draw_the_figure(DRAW_DELAY);
-
+		
 		// 이동
 		_to_move_if_possible();
 	}

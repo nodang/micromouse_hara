@@ -22,7 +22,6 @@
 #pragma CODE_SECTION(init_bfs_algo, "ramfuncs2");
 #pragma CODE_SECTION(a_star_algo_to_goal, "ramfuncs2");
 #pragma CODE_SECTION(queue_the_path, "ramfuncs2");
-
 void init_map(void)
 {
 	int16 i;
@@ -128,7 +127,6 @@ void init_bfs_algo()
 	cost[start_node] = 0;
 }
 
-
 int16 a_star_algo_to_goal()
 {
 	int16 node, next_node, start_node = pq.node[0];
@@ -190,7 +188,6 @@ void queue_the_path(int16 last_node)
 	}
 }
 
-
 //==========================================================================//
 //                                SEARCH                                    //
 //==========================================================================//
@@ -199,7 +196,6 @@ void queue_the_path(int16 last_node)
 #pragma CODE_SECTION(_search_with_bfs_to_home, "ramfuncs2");
 #pragma CODE_SECTION(calculate_cost_to_goal, "ramfuncs2");
 #pragma CODE_SECTION(calculate_cost_to_home, "ramfuncs2");
-
 static void _heuristics_func_to_goal()
 {
 	int16 i, node, next_dir, next_node;
@@ -285,8 +281,6 @@ static int16 _search_with_bfs_to_home()
 			queue_push(&queue, next_node);
 			closed[next_node] = 1;
 
-			cost[next_node] = cost[node] + 1;
-
 			if (cost[next_node] > cost[node])
 			{
 				cost[next_node] = cost[node] + 1;
@@ -327,7 +321,6 @@ void calculate_cost_to_home()
 #pragma CODE_SECTION(_search_with_bfs_to_fast_home, "ramfuncs2");
 #pragma CODE_SECTION(calculate_cost_to_fast_goal, "ramfuncs2");
 #pragma CODE_SECTION(calculate_cost_to_fast_home, "ramfuncs2");
-
 static void _heuristics_func_to_fast_goal()
 {
 	int16 i, c, temp, node, dir, next_dir, next_node;
@@ -398,8 +391,6 @@ static int _search_with_bfs_to_fast_home()
 
 			queue_push(&queue, next_node);
 			closed[next_node] = 1;
-
-			cost[next_node] = cost[node] + 1;
 
 			if (cost[next_node] > cost[node])
 			{

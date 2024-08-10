@@ -308,7 +308,7 @@ interrupt void IsrAdc(void)
 {
 	static Uint16 ADC_channel_cnt = 0;
 	static Uint32 sen_sum0_u32 = 0, sen_sum1_u32 = 0;
-	//_iq17 buff0, buff1;
+	_iq17 temp0, temp1;
 
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 
@@ -356,12 +356,13 @@ interrupt void IsrAdc(void)
 		g_s_sen[SEN_NUM_R].value_u16 	= (Uint16)(sen_sum0_u32 >> 5); // divide 8 * 3
 		g_s_sen[SEN_NUM_L].value_u16 	= (Uint16)(sen_sum1_u32 >> 5); // divide 8 * 3
 		sen_sum0_u32 = sen_sum1_u32 = 0;
-		
+
 		//==================================================================//
 		// 						Digital IIR LPF Part						//
 		//==================================================================//
 
 		/*================== Right Sensor Data Filtering ===================*/
+		/*
 		// Data filtering
 		g_s_sen[SEN_NUM_R].s_lpf.input_q17 = ((int32)(g_s_sen[SEN_NUM_R].value_u16)) << 17;
 		g_s_sen[SEN_NUM_R].s_lpf.output_q17 = _IQ17mpyIQX(SENSOR_Kb, 30, g_s_sen[SEN_NUM_R].s_lpf.input_previous_q17 + g_s_sen[SEN_NUM_R].s_lpf.input_q17, 17) 
@@ -380,7 +381,24 @@ interrupt void IsrAdc(void)
 
 		g_s_sen[SEN_NUM_R].s_lpf_diff.input_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17;
 		g_s_sen[SEN_NUM_R].s_lpf_diff.output_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17;		// Didn't be used
+		*/
+		temp0 = ((int32)(g_s_sen[SEN_NUM_R].value_u16)) << 17;
+		g_s_sen[SEN_NUM_R].s_lpf.output_q17 = _IQ17mpyIQX(SENSOR_Kb, 30, g_s_sen[SEN_NUM_R].s_lpf.input_previous_q17 + temp0, 17) 
+			- _IQ17mpyIQX(SENSOR_Ka, 30, g_s_sen[SEN_NUM_R].s_lpf.output_q17, 17);
+		// for position data buff
+		//buff0 = g_s_sen[SEN_NUM_R].s_lpf.output_q17;
 
+		// Data differences filtering
+		g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17 = g_s_sen[SEN_NUM_R].s_lpf.output_q17 - g_s_sen[SEN_NUM_R].s_lpf.output_previous_q17;
+		g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17 = _IQ17mpyIQX(SENSOR_Kb_DIFF, 30, g_s_sen[SEN_NUM_R].s_lpf_diff.input_previous_q17 + g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17, 17) 
+			- _IQ17mpyIQX(SENSOR_Ka_DIFF, 30, g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17, 17);
+
+		// lpf filtered data are stored.
+		g_s_sen[SEN_NUM_R].s_lpf.input_previous_q17		= temp0;
+		g_s_sen[SEN_NUM_R].s_lpf.output_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf.output_q17;
+
+		g_s_sen[SEN_NUM_R].s_lpf_diff.input_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17;
+		g_s_sen[SEN_NUM_R].s_lpf_diff.output_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17;		// Didn't be used
 		/*================== Left Sensor Data Filtering ===================*/
 		// Data filtering
 		g_s_sen[SEN_NUM_L].s_lpf.input_q17 = ((int32)(g_s_sen[SEN_NUM_L].value_u16)) << 17;
@@ -416,7 +434,8 @@ interrupt void IsrAdc(void)
 			+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a1, g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0)
 			+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0, 
 																		g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x1));
-		//==================================================================//
+		//==================================================================// 
+
 		if(g_sensor_num_u16 < SEN_NUM_HALF_S0)
 			g_sensor_num_u16++;
 		else
