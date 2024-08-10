@@ -24,7 +24,7 @@ jobs:
     - name: permission
       run: chmod -R +x ./main ./include ./Compiler
       shell: bash
-      working-directory: 2809_MICROMOUSE/
+      working-directory: 2809_hara
 
     - name: build
       run: |
@@ -33,7 +33,7 @@ jobs:
         mkdir ../build
         mv *.out *.map *.hex ../build
       shell: bash
-      working-directory: 2809_MICROMOUSE/main/
+      working-directory: 2809_hara/main/
       env:
         TARGET_BAT: a_hara
         AUTO_BUILD_ENABLE: YES
@@ -42,4 +42,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: c28x-build
-        path: build/
+        path: 2809_hara/build/
