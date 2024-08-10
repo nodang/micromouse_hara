@@ -3,7 +3,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: UserProgram Build
+name: Monitor Build
 
 on:
   # push:
@@ -13,7 +13,7 @@ on:
   push:
     branches: [ "master" ]
     paths:
-      - "2809_hara/**"
+      - "2809_monitor/**"
 
 jobs:
   build:
@@ -28,7 +28,7 @@ jobs:
     - name: permission
       run: chmod -R +x ./main ./include ./Compiler
       shell: bash
-      working-directory: 2809_hara
+      working-directory: 2809_monitor
 
     - name: build
       run: |
@@ -37,7 +37,7 @@ jobs:
         mkdir ../build
         mv *.out *.map *.hex ../build
       shell: bash
-      working-directory: 2809_hara/main/
+      working-directory: 2809_monitor/main/
       env:
         TARGET_BAT: a_hara
         AUTO_BUILD_ENABLE: YES
@@ -45,5 +45,5 @@ jobs:
     - name: zip release files
       uses: actions/upload-artifact@v4
       with:
-        name: UserProgramBuild_Output
-        path: 2809_hara/build/
+        name: MonitorBuild_Output
+        path: 2809_monitor/build/
