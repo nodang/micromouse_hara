@@ -2,12 +2,10 @@
 # By RealSYS	2003/9/18
 
 #----- out file name -----
-TARGET = a_hara_monitor2809
+TARGET = $(TARGET_BAT)
 
 #----- path_dir -------
-PATH =..
-
-
+PATH = ..
 #----- C source files -----
 INCLUDE = $(PATH)\include
 SRC =  DSP280x_CpuTimers.c DSP280x_DefaultIsr.c DSP280x_GlobalVariableDefs.c DSP280x_Gpio.c DSP280x_MemCopy.c DSP280x_PieCtrl.c	DSP280x_PieVect.c DSP280x_Sci.c DSP280x_SysCtrl.c main.c flash.c lcd.c vfd.c

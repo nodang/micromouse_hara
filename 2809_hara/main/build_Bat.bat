@@ -1,4 +1,4 @@
-./title TMS320F2809 UserFile Compile
+title TMS320F2809 UserFile Compile
 color 00
 
 set PATH_BAT=..\Compiler

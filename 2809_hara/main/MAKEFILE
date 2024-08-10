@@ -28,7 +28,7 @@ SRC = DSP280x_Adc.c DSP280x_EPwm.c DSP280x_EQep.c DSP280x_CpuTimers.c DSP280x_De
 ASRC =DSP280x_CodeStartBranch.asm DSP280x_usDelay.asm
 
 #----- command file -----
-CMDFILE	= DSP280x_Headers_nonBIOS.cmd F2808.cmd
+CMDFILE	= DSP280x_Headers_nonBIOS.cmd F2809.cmd #F2808.cmd
 
 #----- Compiler directory & exe files -----
 ifeq ($(AUTO_BUILD_ENABLE),NO)
