@@ -30,6 +30,8 @@ inline BOOL _InlineCheckWhetherRobotIsReachedToGoal(int16 *robot_pos)
 
 inline void _InlineSaveWallData(int16 robot_pos, int16 wall_state, _iq17 gone_dist)
 {
+	int16 i, next_pos, wall_dir;
+
 	robot_pos = robot.pos;
 	gone_dist = (g_s_left_motor.s_dist.gone_q17 + g_s_left_motor.s_dist.gone_q17) >> 1;
 
@@ -41,6 +43,18 @@ inline void _InlineSaveWallData(int16 robot_pos, int16 wall_state, _iq17 gone_di
 		/*센서 데이터에 따른 벽 저장*/
 		
 		map[robot_pos].all = wall_state; //origin_map[robot_pos].all;
+
+		for (i = 0; i < 4; i++)
+		{
+			next_pos = robot_pos + diff[i];
+			wall_dir = (1 << i);
+
+			if (next_pos < 0 || next_pos >= MAP_SIZE)
+				continue;
+
+			if (map[robot_pos].all & wall_dir)
+				map[next_pos].all |= (wall_dir << 2) % 15;
+		}
 	}
 }
 

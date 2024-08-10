@@ -22,10 +22,10 @@ static BOOL _to_move_if_possible()
 	int16 pos_diff = path.arr[0] - robot.pos;
 	int16 should_go_dir = 0xf;
 	
-	if (pos_diff == 0x01)	should_go_dir = NORTH;
-	if (pos_diff == 0x10)	should_go_dir = EAST;
-	if (pos_diff == -0x01)	should_go_dir = SOUTH;
-	if (pos_diff == -0x10)	should_go_dir = WEST;
+	if (pos_diff == diff[0])	should_go_dir = NORTH;
+	if (pos_diff == diff[1])	should_go_dir = EAST;
+	if (pos_diff == diff[2])	should_go_dir = SOUTH;
+	if (pos_diff == diff[3])	should_go_dir = WEST;
 
 	// check the possibility of movement
 	// check the possibility of path tracking
@@ -54,68 +54,44 @@ void search_race()
 	// go to the goal -> search the maze on the way home
 	int16 robot_pos, wall_state;
 	_iq17 gone_dist;
-	BOOL end_of_while = FALSE;
 	
 	// go to the goal
 	while (1)
 	{
+		// 종료 확인
+		if (goal_node[0] == robot_pos ||
+			goal_node[1] == robot_pos ||
+			goal_node[2] == robot_pos ||
+			goal_node[3] == robot_pos)
+			break;
+
 		// 센서값으로 벽 정보 읽기
 		_InlineSaveWallData(robot_pos, wall_state, gone_dist);
 
-		// 종료 확인
-		end_of_while = _InlineCheckWhetherRobotIsReachedToGoal(&robot_pos);
-
-		if (end_of_while)
-		{
-			//draw_the_figure(DRAW_DELAY);
-			break;
-		}
-		else if (path.ind == 0)
-		{
-			// 현재 위치에서 비용 계산 및 경로 계획
+		// 현재 위치에서 비용 계산 및 경로 계획
+		if (path.ind == 0)
 			calculate_cost_to_goal();
-		}
-
-		// Functions related to drawing
-		//draw_the_figure(DRAW_DELAY);
 
 		// 이동
-		while (path.ind > 0 && !_to_move_if_possible())
-		{
-			// 이동할 공간이 없으면
-			calculate_cost_to_goal();
-			//draw_the_figure(DRAW_DELAY);
-		}
+		_to_move_if_possible();
 	}
 
 	// search the maze on the way home
 	while (1)
 	{
+		// 종료 확인
+		if (robot_pos == HOME)
+			break;
+		
 		// 센서값으로 벽 정보 읽기
 		_InlineSaveWallData(robot_pos, wall_state, gone_dist);
 
-		// 종료 확인
-		if (robot_pos == HOME)
-		{
-			//draw_the_figure(DRAW_DELAY);
-			break;
-		}
-		else if (path.ind == 0)
-		{
-			// 현재 위치에서 비용 계산 및 경로 계획
+		// 현재 위치에서 비용 계산 및 경로 계획
+		if (path.ind == 0)
 			calculate_cost_to_home();
-		}
-
-		// Functions related to drawing
-		//draw_the_figure(DRAW_DELAY);
 
 		// 이동
-		while (path.ind > 0 && !_to_move_if_possible())
-		{
-			// 이동할 공간이 없으면
-			calculate_cost_to_home();
-			//draw_the_figure(DRAW_DELAY);
-		}
+		_to_move_if_possible();
 	}
 }
 
@@ -131,58 +107,32 @@ void fast_race()
 
 	while (1)
 	{
+		_to_move_if_possible();
+
 		// 모든 경로를 소진하면 도착으로 봄
-		if (path.ind > 0)
-			_to_move_if_possible();
-
-		//draw_the_figure(DRAW_DELAY);
-
 		if (path.ind == 0)
 			break;
 	}
-	/*
+	
 	// go to home as soon as possible
-	calculate_cost_to_fast_home();
-
 	while (1)
 	{
-		// 모든 경로를 소진하면 도착으로 봄
-		if (path.ind > 0)
-			_to_move_if_possible();
-
-		//draw_the_figure(DRAW_DELAY);
-
-		if (path.ind == 0)
+		// 종료 확인
+		if (robot_pos == HOME)
 			break;
-	}
-	*/
-	while (1)
-	{
+	
 		// 센서값으로 벽 정보 읽기
 		_InlineSaveWallData(robot_pos, wall_state, gone_dist);
 
-		// 종료 확인
-		if (robot_pos == HOME)
-		{
-			//draw_the_figure(DRAW_DELAY);
-			break;
-		}
-		else if (path.ind == 0)
-		{
-			// 현재 위치에서 비용 계산 및 경로 계획
+		// 현재 위치에서 비용 계산 및 경로 계획
+		if (path.ind == 0)
 			calculate_cost_to_fast_home();
-		}
 
 		// Functions related to drawing
 		//draw_the_figure(DRAW_DELAY);
 
 		// 이동
-		while (path.ind > 0 && !_to_move_if_possible())
-		{
-			// 이동할 공간이 없으면
-			calculate_cost_to_fast_home();
-			//draw_the_figure(DRAW_DELAY);
-		}
+		_to_move_if_possible();
 	}
 }
 
