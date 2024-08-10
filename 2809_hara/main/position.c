@@ -116,10 +116,10 @@ void estimate_position_used_input(PositionVariable *sp_pos)
 {
 	_iq17 temp;
 
-	temp = (g_s_left_motor.s_speed.curr_vel_q17 + g_s_right_motor.s_speed.curr_vel_q17) >> 1;
+	temp = (g_s_left_motor.s_speed.curr_vel_avg_q17 + g_s_right_motor.s_speed.curr_vel_avg_q17) >> 1;
 	sp_pos->v_q17 = _IQ17mpyIQX(temp, 17, TIME_TICK, 30);
 
-	temp = _IQ17div(g_s_left_motor.s_speed.curr_vel_q17 - g_s_right_motor.s_speed.curr_vel_q17, ROBOT_WIDTH);
+	temp = _IQ17div(g_s_left_motor.s_speed.curr_vel_avg_q17 - g_s_right_motor.s_speed.curr_vel_avg_q17, ROBOT_WIDTH);
 	sp_pos->w_q17 = _IQ17mpyIQX(temp, 17, TIME_TICK, 30);
 
 	sp_pos->th_q17 += sp_pos->w_q17;

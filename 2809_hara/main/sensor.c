@@ -607,5 +607,7 @@ void CalibrateSensorValue(void)
 		_CalibrateDiagonalAndFrontSensor();	// Auto, so need motor & sensor
 		DEACTIVATE_SYSTEM;
 	}
+
+	WriteSensorData();
 }
 

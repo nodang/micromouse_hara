@@ -274,6 +274,8 @@ static void _MotorPID(void)
 		else if(!SW_L)	{ DELAY_US(SW_DELAY_HALF);	*p_param[sw_cnt] -= PID_RESOLUTION; }
 	}
 
+	WriteMotorData();
+
 	DELAY_US(SW_DELAY);
 }
 
@@ -374,10 +376,12 @@ static void _TestMotor(void)
 		// accelerate motor speed
 		while(SW_U)
 		{
-			TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+			TxPrintf("tv: %5ld, cvl: %8.2lf, cvr: %8.2lf, Rle: %4u, Rre: %4u, le: %4d, re: %4d\n", 
 				test_vel_i32,
-				_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
-				_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
+				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
+				g_s_left_motor.s_qep.sample_u16,
+				g_s_right_motor.s_qep.sample_u16,
 				g_s_left_motor.s_qep.sample_i16,
 				g_s_right_motor.s_qep.sample_i16
 			);
@@ -387,13 +391,15 @@ static void _TestMotor(void)
 		g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
 
 		// decelerate motor speed
-		while(g_s_left_motor.s_speed.curr_vel_q17 > _IQ17(0.0)
-		|| g_s_left_motor.s_speed.curr_vel_q17 > _IQ17(0.0))
+		while(g_s_left_motor.s_speed.curr_vel_avg_q17 > _IQ17(0.0)
+		|| g_s_left_motor.s_speed.curr_vel_avg_q17 > _IQ17(0.0))
 		{			
-			TxPrintf("tv: %5ld, cvl: %5.2lf, cvr: %5.2lf, le: %4d re: %4d\n", 
+			TxPrintf("tv: %5ld, cvl: %8.2lf, cvr: %8.2lf, Rle: %4u, Rre: %4u, le: %4d, re: %4d\n", 
 				test_vel_i32,
-				_IQ17toF(g_s_left_motor.s_speed.curr_vel_q17),
-				_IQ17toF(g_s_right_motor.s_speed.curr_vel_q17),
+				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
+				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
+				g_s_left_motor.s_qep.sample_u16,
+				g_s_right_motor.s_qep.sample_u16,
 				g_s_left_motor.s_qep.sample_i16,
 				g_s_right_motor.s_qep.sample_i16
 			);

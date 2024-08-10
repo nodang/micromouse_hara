@@ -18,7 +18,7 @@
 #include "Motor.h"
 
 #define ENCODER_RESOLUTION		1024
-#define ENCODER_RESOLUTION_x2	2048
+#define ENCODER_RESOLUTION_x2	2049
 
 #define MAX_I_TERM		_IQ17(5.0)
 #define MIN_I_TERM		-MAX_I_TERM //_IQ17(-5.0)
@@ -65,11 +65,11 @@ static void _InitMotorSturcture(MotorVariable *sp_motor)
 {
 	memset((void *)sp_motor, 0x00, sizeof(MotorVariable));
 
-	sp_motor->kp_q17 = _IQ17(4.5);		// 4.5
-	sp_motor->ki_q17 = _IQ17(0.00002);	// 0.0002
-	sp_motor->kd_q17 = _IQ17(4.5);		// 4.5
+	sp_motor->kp_q17 = _IQ17div(g_motor_kp_u32 << 17, _IQ17(100.0));		// 4.5
+	sp_motor->ki_q17 = _IQ17div(_IQ17div(g_motor_ki_u32 << 17, _IQ17(100.0)), _IQ17(1000.0));	// 0.0002
+	sp_motor->kd_q17 = _IQ17div(g_motor_kd_u32 << 17, _IQ17(100.0));		// 4.5
 
-	sp_motor->s_speed.accel_q15 = _IQ15(6500.0);
+	sp_motor->s_speed.accel_q15 = _IQ15(1000.0);
 	sp_motor->s_speed.target_vel_q17 = _IQ17(0.0);
 	sp_motor->s_adj.adj_ratio_q17 = _IQ17(1.0);
 }
@@ -98,12 +98,12 @@ interrupt void IsrTimer2ForMotor(void)
 
 	// 받은 값을 int16으로 변환한다.
 	// transform the sample type to int16
-	if(_sp_r_qep->sample_u16 >= ENCODER_RESOLUTION)
+	if(_sp_r_qep->sample_u16 > ENCODER_RESOLUTION)
 		_sp_r_qep->sample_i16 = ENCODER_RESOLUTION_x2 - ((int16)_sp_r_qep->sample_u16);
 	else 
 		_sp_r_qep->sample_i16 = -((int16)_sp_r_qep->sample_u16);
 
-	if(_sp_l_qep->sample_u16 >= ENCODER_RESOLUTION)
+	if(_sp_l_qep->sample_u16 > ENCODER_RESOLUTION)
 		_sp_l_qep->sample_i16 = (int16)_sp_l_qep->sample_u16 - ENCODER_RESOLUTION_x2;
 	else
 		_sp_l_qep->sample_i16 = (int16)_sp_l_qep->sample_u16;
@@ -131,8 +131,17 @@ interrupt void IsrTimer2ForMotor(void)
 
 	// 펄스당 속도와 QEP를 곱해 현재의 속도를 구한다.
 	// calculate current velocity. multiply the sample by velocity per a pulse
-	_sp_r_speed->curr_vel_q17 = _IQ17mpyIQX(_sp_r_qep->sample_q21, 21, PULSE_TO_VEL, 26);
-	_sp_l_speed->curr_vel_q17 = _IQ17mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_VEL, 26);
+	_sp_r_speed->curr_vel_q17[3] = _sp_r_speed->curr_vel_q17[2];
+	_sp_r_speed->curr_vel_q17[2] = _sp_r_speed->curr_vel_q17[1];
+	_sp_r_speed->curr_vel_q17[1] = _sp_r_speed->curr_vel_q17[0];
+	_sp_r_speed->curr_vel_q17[0] = _IQ17mpyIQX(_sp_r_qep->sample_q21, 21, PULSE_TO_VEL, 26);
+	_sp_r_speed->curr_vel_avg_q17 = (_sp_r_speed->curr_vel_q17[0] + _sp_r_speed->curr_vel_q17[1] + _sp_r_speed->curr_vel_q17[2] + _sp_r_speed->curr_vel_q17[3]) >> 2;
+
+	_sp_l_speed->curr_vel_q17[3] = _sp_l_speed->curr_vel_q17[2];
+	_sp_l_speed->curr_vel_q17[2] = _sp_l_speed->curr_vel_q17[1];
+	_sp_l_speed->curr_vel_q17[1] = _sp_l_speed->curr_vel_q17[0];
+	_sp_l_speed->curr_vel_q17[0] = _IQ17mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_VEL, 26);
+	_sp_l_speed->curr_vel_avg_q17 = (_sp_l_speed->curr_vel_q17[0] + _sp_l_speed->curr_vel_q17[1] + _sp_l_speed->curr_vel_q17[2] + _sp_l_speed->curr_vel_q17[3]) >> 2;
 	
 	// 남은 거리 확인 후 목표 감속 속도 설정
 	// if remainging distance over the stop point set then set target velocity to deceleration target velocity
@@ -210,11 +219,12 @@ interrupt void IsrTimer2ForMotor(void)
 	g_s_right_motor.err_vel_q17[3] = g_s_right_motor.err_vel_q17[2];
 	g_s_right_motor.err_vel_q17[2] = g_s_right_motor.err_vel_q17[1];
 	g_s_right_motor.err_vel_q17[1] = g_s_right_motor.err_vel_q17[0];
-	g_s_right_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_r_speed->next_vel_q17, 17, _sp_r_msc->adj_ratio_q17, 17) - _sp_r_speed->curr_vel_q17;
+	g_s_right_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_r_speed->next_vel_q17, 17, _sp_r_msc->adj_ratio_q17, 17) - _sp_r_speed->curr_vel_avg_q17;
 	g_s_right_motor.err_vel_sum_q17 += g_s_right_motor.err_vel_q17[0];
 
 	g_s_right_motor.proportional_term_q17 = _IQ17mpy(g_s_right_motor.kp_q17, g_s_right_motor.err_vel_q17[0]);
-	g_s_right_motor.derivative_term_q17 = _IQ17mpy(g_s_right_motor.kd_q17, ((g_s_right_motor.err_vel_q17[0] - g_s_right_motor.err_vel_q17[3]) + ((g_s_right_motor.err_vel_q17[1] - g_s_right_motor.err_vel_q17[2]) << 1)));
+	g_s_right_motor.derivative_term_q17 = g_s_right_motor.err_vel_q17[1] - g_s_right_motor.err_vel_q17[2];
+	g_s_right_motor.derivative_term_q17 = _IQ17mpy(g_s_right_motor.kd_q17, ((g_s_right_motor.err_vel_q17[0] - g_s_right_motor.err_vel_q17[3]) + g_s_right_motor.derivative_term_q17 + (g_s_right_motor.derivative_term_q17 << 1)));
 	g_s_right_motor.integral_term_q17 = _IQ17mpy(g_s_right_motor.ki_q17, g_s_right_motor.err_vel_sum_q17);
 
 	if(g_s_right_motor.integral_term_q17 > MAX_I_TERM)			g_s_right_motor.integral_term_q17 = MAX_I_TERM;
@@ -227,11 +237,12 @@ interrupt void IsrTimer2ForMotor(void)
 	g_s_left_motor.err_vel_q17[3] = g_s_left_motor.err_vel_q17[2];
 	g_s_left_motor.err_vel_q17[2] = g_s_left_motor.err_vel_q17[1];
 	g_s_left_motor.err_vel_q17[1] = g_s_left_motor.err_vel_q17[0];
-	g_s_left_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_l_speed->next_vel_q17, 17, _sp_l_msc->adj_ratio_q17, 17) - _sp_l_speed->curr_vel_q17;
+	g_s_left_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_l_speed->next_vel_q17, 17, _sp_l_msc->adj_ratio_q17, 17) - _sp_l_speed->curr_vel_avg_q17;
 	g_s_left_motor.err_vel_sum_q17 += g_s_left_motor.err_vel_q17[0];
 
 	g_s_left_motor.proportional_term_q17 = _IQ17mpy(g_s_left_motor.kp_q17,  g_s_left_motor.err_vel_q17[0]);
-	g_s_left_motor.derivative_term_q17 = _IQ17mpy(g_s_left_motor.kd_q17, ((g_s_left_motor.err_vel_q17[0] - g_s_left_motor.err_vel_q17[3]) + ((g_s_left_motor.err_vel_q17[1] - g_s_left_motor.err_vel_q17[2]) << 1)));
+	g_s_left_motor.derivative_term_q17 = g_s_left_motor.err_vel_q17[1] - g_s_left_motor.err_vel_q17[2];
+	g_s_left_motor.derivative_term_q17 = _IQ17mpy(g_s_left_motor.kd_q17, ((g_s_left_motor.err_vel_q17[0] - g_s_left_motor.err_vel_q17[3]) + g_s_left_motor.derivative_term_q17 + (g_s_left_motor.derivative_term_q17 << 1)));
 	g_s_left_motor.integral_term_q17 = _IQ17mpy(g_s_left_motor.ki_q17, g_s_left_motor.err_vel_sum_q17);
 
 	if(g_s_left_motor.integral_term_q17 > MAX_I_TERM)			g_s_left_motor.integral_term_q17 = MAX_I_TERM;
@@ -242,7 +253,7 @@ interrupt void IsrTimer2ForMotor(void)
 	// 
 	if(g_s_flags.motor_pwm_b)
 	{
-		if(g_s_right_motor.pid_output_q17 >= _IQ17(0.0))
+		if(g_s_right_motor.pid_output_q17 > _IQ17(0.0))
 		{
 			if( g_s_right_motor.pid_output_q17 > MAX_PID_OUT )
 				g_s_right_motor.pid_output_q17 = MAX_PID_OUT;
@@ -261,7 +272,7 @@ interrupt void IsrTimer2ForMotor(void)
 			EPwm1Regs.CMPA.half.CMPA = (Uint16)(_IQ17mpyIQX(-g_s_right_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 		
-		if( g_s_left_motor.pid_output_q17 >= _IQ17(0.0) )
+		if( g_s_left_motor.pid_output_q17 > _IQ17(0.0) )
 		{
 			if( g_s_left_motor.pid_output_q17 > MAX_PID_OUT )
 				g_s_left_motor.pid_output_q17 = MAX_PID_OUT;
@@ -280,6 +291,17 @@ interrupt void IsrTimer2ForMotor(void)
 			EPwm2Regs.CMPB = (Uint16)(_IQ17mpyIQX(-g_s_left_motor.pid_output_q17, 17, PWM_CONVERT, 30) >> 17);
 		}
 	}
+	else
+	{
+		EPwm1Regs.AQCTLA.bit.ZRO = AQ_CLEAR;
+		EPwm1Regs.AQCTLB.bit.ZRO = AQ_SET;
+
+		EPwm2Regs.AQCTLA.bit.ZRO = AQ_SET;
+		EPwm2Regs.AQCTLB.bit.ZRO = AQ_CLEAR;
+		
+		EPwm1Regs.CMPB = EPwm2Regs.CMPB = 0;  	
+	}
+
 #endif
 	g_timer_500u_u32++;
 #if 0
@@ -307,7 +329,7 @@ void MoveToStop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
 
-	curr_vel = (_sp_l_speed->curr_vel_q17 + _sp_r_speed->curr_vel_q17) >> 1;
+	curr_vel = (_sp_l_speed->curr_vel_avg_q17 + _sp_r_speed->curr_vel_avg_q17) >> 1;
 	_InlineCalcDistNVel(curr_vel, &tar_vel, _IQ17(0.0), tar_dist, &dec_dist, tar_acc);
 	
 	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
@@ -333,7 +355,7 @@ void MoveToMove(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
 
-	curr_vel = (_sp_l_speed->curr_vel_q17 + _sp_r_speed->curr_vel_q17) >> 1;
+	curr_vel = (_sp_l_speed->curr_vel_avg_q17 + _sp_r_speed->curr_vel_avg_q17) >> 1;
 	_InlineCalcDistNVel(curr_vel, &tar_vel, dec_vel, tar_dist, &dec_dist, tar_acc);
 	
 	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
@@ -409,8 +431,8 @@ void calc_target_velocity_for_turn(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _
 		tar_vl = tar_v + temp;
 	}
 
-	abs_diff_vr = tar_vr - _sp_r_speed->curr_vel_q17;
-	abs_diff_vl = tar_vl - _sp_l_speed->curr_vel_q17;
+	abs_diff_vr = tar_vr - _sp_r_speed->curr_vel_avg_q17;
+	abs_diff_vl = tar_vl - _sp_l_speed->curr_vel_avg_q17;
 
 	if(abs_diff_vr < _IQ17(0.0)) abs_diff_vr = -abs_diff_vr;
 	if(abs_diff_vl < _IQ17(0.0)) abs_diff_vl = -abs_diff_vl;
