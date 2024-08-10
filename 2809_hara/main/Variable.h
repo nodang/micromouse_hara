@@ -240,7 +240,8 @@ typedef volatile struct
 {
 	_iq15	accel_q15;
 
-	_iq17	curr_vel_q17,
+	_iq17	curr_vel_q17[4],
+			curr_vel_avg_q17,
 			next_vel_q17,
 			target_vel_q17,
 			decel_vel_q17;

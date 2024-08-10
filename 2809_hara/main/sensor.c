@@ -86,7 +86,7 @@ static void _InitSideSensorFormulaVariable(void)
 	};
 	NewtonInterpolationVariable *sp_formula;
 
-	for(i = 0; i < sizeof(ind); i++)
+	for(i = 0; i < 4; i++)
 	{
 		sp_formula = &g_s_sen[ind[i]].s_dist.s_formula;
 		
@@ -114,7 +114,7 @@ static void _Init45SensorFormulaVariable(void)
 	};
 	NewtonInterpolationVariable *sp_formula;
 
-	for(i = 0; i < sizeof(ind); i++)
+	for(i = 0; i < 2; i++)
 	{
 		sp_formula = &g_s_sen[ind[i]].s_dist.s_formula;
 	
@@ -142,7 +142,7 @@ static void _InitFrontSensorFormulaVariable(void)
 	};
 	NewtonInterpolationVariable *sp_formula;
 
-	for(i = 0; i < sizeof(ind); i++)
+	for(i = 0; i < 2; i++)
 	{
 		sp_formula = &g_s_sen[ind[i]].s_dist.s_formula;
 	
@@ -161,6 +161,7 @@ static void _InitFrontSensorFormulaVariable(void)
 
 static void _InitSensorFormulaVariable(void)
 {
+	int16 i;
 	/*
 		Newton Interpolation Init setting of Y param
 		Refer excel file named "sensor estimation" in PPT
@@ -171,6 +172,21 @@ static void _InitSensorFormulaVariable(void)
 	_InitSideSensorFormulaVariable();
 	_Init45SensorFormulaVariable();
 	_InitFrontSensorFormulaVariable();
+
+	for(i = 0; i < SEN_NUM; i++)
+	{
+		TxPrintf("SenNum: %u | y0: %.2lf y1: %.2lf y2: %.2lf\n", i,
+				_IQ17toF(g_s_sen[i].s_dist.s_formula.y0),
+					_IQ17toF(g_s_sen[i].s_dist.s_formula.y1),
+						_IQ17toF(g_s_sen[i].s_dist.s_formula.y2));
+	}
+	for(i = 0; i < SEN_NUM; i++)
+	{
+		TxPrintf("SenNum: %u | a0: %.2lf a1: %.2lf a2: %.2lf\n", i,
+				_IQ17toF(g_s_sen[i].s_dist.s_formula.a0),
+					_IQ17toF(g_s_sen[i].s_dist.s_formula.a1),
+						_IQ17toF(g_s_sen[i].s_dist.s_formula.a2));
+	}
 }
 
 void InitSensor(void)
@@ -179,7 +195,7 @@ void InitSensor(void)
 
 	g_sensor_num_u16 = 0;
 
-	// ReadSensorData();
+	ReadSensorData();
 	_InitSensorFormulaVariable();	// Need to data from EEPROM or sensor setting
 }
 
@@ -306,8 +322,8 @@ interrupt void IsrTimer0ForSensor(void)
 
 interrupt void IsrAdc(void)
 {
-	static Uint16 ADC_channel_cnt = 0;
-	static Uint32 sen_sum0_u32 = 0, sen_sum1_u32 = 0;
+	static volatile Uint16 ADC_channel_cnt = 0;
+	static volatile Uint32 sen_sum0_u32 = 0, sen_sum1_u32 = 0;
 	_iq17 temp0, temp1;
 
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
@@ -419,9 +435,9 @@ interrupt void IsrAdc(void)
 
 		g_s_sen[SEN_NUM_L].s_lpf_diff.input_previous_q17	= g_s_sen[SEN_NUM_L].s_lpf_diff.input_q17;
 		g_s_sen[SEN_NUM_L].s_lpf_diff.output_previous_q17	= g_s_sen[SEN_NUM_L].s_lpf_diff.output_q17; 	// Didn't be used
-
+/*
 		//==================================================================//
-		//				Estimate Distance according Sensor Data				//
+		//				Estimate Distance according Sensor Data				//0
 		//==================================================================//
 		g_s_sen[SEN_NUM_R].s_dist.s_formula.x = g_s_sen[SEN_NUM_R].s_lpf.output_q17;
 		g_s_sen[SEN_NUM_R].s_dist.value_q17 = g_s_sen[SEN_NUM_R].s_dist.s_formula.a0
@@ -434,8 +450,7 @@ interrupt void IsrAdc(void)
 			+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a1, g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0)
 			+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0, 
 																		g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x1));
-		//==================================================================// 
-
+		//==================================================================//
 		if(g_sensor_num_u16 < SEN_NUM_HALF_S0)
 			g_sensor_num_u16++;
 		else
@@ -455,7 +470,7 @@ static void _CalibrateSideSensors(void)
 {
 	while(SW_D)
 	{	
-		VFDPrintf("->> %4lu", 
+		VFDPrintf("->> %4u", 
 			(RFS.value_u16 + RBS.value_u16) >> 1);
 	}
 	// Right close
@@ -471,7 +486,7 @@ static void _CalibrateSideSensors(void)
 
 	while(SW_D)
 	{
-		VFDPrintf("%-4lu%4lu",
+		VFDPrintf("%-4u%4u",
 			(LFS.value_u16 + LBS.value_u16) >> 1,
 			(RFS.value_u16 + RBS.value_u16) >> 1);
 	}
@@ -488,7 +503,7 @@ static void _CalibrateSideSensors(void)
 
 	while(SW_D)
 	{
-		VFDPrintf("<<- %4lu", 
+		VFDPrintf("<<- %4u", 
 			(LFS.value_u16 + LBS.value_u16) >> 1);
 	}
 	// Right far
@@ -626,5 +641,7 @@ void CalibrateSensorValue(void)
 		_CalibrateDiagonalAndFrontSensor();	// Auto, so need motor & sensor
 		DEACTIVATE_SYSTEM;
 	}
+
+	WriteSensorData();
 }
 

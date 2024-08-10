@@ -80,35 +80,73 @@ void ReadSensorData()
 		g_s_sen[j].s_dist.s_formula.x2 |= ((Uint32)read_arr[i++]) << 8;
 		g_s_sen[j].s_dist.s_formula.x2 |= ((Uint32)read_arr[i++]) << 16;
 		g_s_sen[j].s_dist.s_formula.x2 |= ((Uint32)read_arr[i++]) << 24;
+
+		TxPrintf("SenNum: %u | x0: %.2lf x1: %.2lf x2: %.2lf\n", j,
+			_IQ17toF(g_s_sen[j].s_dist.s_formula.x0),
+				_IQ17toF(g_s_sen[j].s_dist.s_formula.x1),
+					_IQ17toF(g_s_sen[j].s_dist.s_formula.x2));
 	}
 }
 
 void WriteMotorData()
 {
-	Uint16	i = 0, write_arr[kSensorArraySize] = { 0, };
+	Uint16	i = 0, write_arr[kMotorArraySize] = { 0, };
+
+	write_arr[i++] = (g_motor_kp_u32 >> 0) & 0xff;
+	write_arr[i++] = (g_motor_kp_u32 >> 8) & 0xff;
+	write_arr[i++] = (g_motor_kp_u32 >> 16) & 0xff;
+	write_arr[i++] = (g_motor_kp_u32 >> 24) & 0xff;
+
+	write_arr[i++] = (g_motor_ki_u32 >> 0) & 0xff;
+	write_arr[i++] = (g_motor_ki_u32 >> 8) & 0xff;
+	write_arr[i++] = (g_motor_ki_u32 >> 16) & 0xff;
+	write_arr[i++] = (g_motor_ki_u32 >> 24) & 0xff;
+
+	write_arr[i++] = (g_motor_kd_u32 >> 0) & 0xff;
+	write_arr[i++] = (g_motor_kd_u32 >> 8) & 0xff;
+	write_arr[i++] = (g_motor_kd_u32 >> 16) & 0xff;
+	write_arr[i++] = (g_motor_kd_u32 >> 24) & 0xff;
 
 	SpiWriteRom((Uint16)kMotorPage, 0, (Uint16)kMotorArraySize, write_arr);
 }
 
 void ReadMotorData()
 {
-	Uint16	i = 0, read_arr[kSensorArraySize] = { 0, };
+	Uint16	i = 0, read_arr[kMotorArraySize] = { 0, };
 
-	SpiReadRom((Uint16)kSensorPage, 0, (Uint16)kMotorArraySize, read_arr);
+	SpiReadRom((Uint16)kMotorPage, 0, (Uint16)kMotorArraySize, read_arr);
+
+	g_motor_kp_u32 =  ((Uint32)read_arr[i++]) << 0;
+	g_motor_kp_u32 |= ((Uint32)read_arr[i++]) << 8;
+	g_motor_kp_u32 |= ((Uint32)read_arr[i++]) << 16;
+	g_motor_kp_u32 |= ((Uint32)read_arr[i++]) << 24;
+
+	g_motor_ki_u32 =  ((Uint32)read_arr[i++]) << 0;
+	g_motor_ki_u32 |= ((Uint32)read_arr[i++]) << 8;
+	g_motor_ki_u32 |= ((Uint32)read_arr[i++]) << 16;
+	g_motor_ki_u32 |= ((Uint32)read_arr[i++]) << 24;
+
+	g_motor_kd_u32 =  ((Uint32)read_arr[i++]) << 0;
+	g_motor_kd_u32 |= ((Uint32)read_arr[i++]) << 8;
+	g_motor_kd_u32 |= ((Uint32)read_arr[i++]) << 16;
+	g_motor_kd_u32 |= ((Uint32)read_arr[i++]) << 24;
+
+	TxPrintf("Kp: %lu Ki: %lu Kd: %lu\n",
+		g_motor_kp_u32, g_motor_ki_u32, g_motor_kd_u32);
 }
 
 void WriteRunningData()
 {
-	Uint16	i = 0, write_arr[kSensorArraySize] = { 0, };
+	Uint16	i = 0, write_arr[kRunArraySize] = { 0, };
 
 	SpiWriteRom((Uint16)kRunPage, 0, (Uint16)kRunArraySize, write_arr);
 }
 
 void ReadRunningData()
 {
-	Uint16	i = 0, read_arr[kSensorArraySize] = { 0, };
+	Uint16	i = 0, read_arr[kRunArraySize] = { 0, };
 
-	SpiReadRom((Uint16)kSensorPage, 0, (Uint16)kRunArraySize, read_arr);
+	SpiReadRom((Uint16)kRunPage, 0, (Uint16)kRunArraySize, read_arr);
 }
 
 void WriteMapData(Uint16 number)
