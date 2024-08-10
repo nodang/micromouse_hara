@@ -16,7 +16,7 @@
 #include "DSP280x_Device.h"     // DSP280x Headerfile Include File
 #include "DSP280x_Examples.h"   // DSP280x Examples Include File
 
-static BOOL _to_move_if_possible()
+static void _to_move_if_possible()
 {
 	// decide direction from position difference
 	int16 pos_diff = path.arr[0] - robot.pos;
@@ -42,11 +42,7 @@ static BOOL _to_move_if_possible()
 			robot.pos = queue_pop(&path);
 			MoveToMove(BLOCK_WIDTH,_IQ15(3000.0),_IQ17(650.0),_IQ17(650.0));
 		}
-
-		return TRUE;
 	}
-	else
-		return FALSE;
 }
 
 void search_race()
