@@ -87,6 +87,7 @@ void InitMotor(void)
 #pragma CODE_SECTION(MoveToMove, "ramfuncs2");
 interrupt void IsrTimer2ForMotor(void)
 {
+	int16 i;
 	// QEP값을 받는다
 	// save qep sampling value
 	_sp_r_qep->sample_u16 = (Uint16)(RightQepRegs.QPOSCNT);
@@ -301,7 +302,19 @@ interrupt void IsrTimer2ForMotor(void)
 		
 		EPwm1Regs.CMPB = EPwm2Regs.CMPB = 0;  	
 	}
-
+/*
+	for(i = 0; i < SEN_NUM; i++)
+	{
+		//==================================================================//
+		//				Estimate Distance according Sensor Data				//
+		//==================================================================//
+		g_s_sen[i].s_dist.s_formula.x = g_s_sen[i].s_lpf.output_q17;
+		g_s_sen[i].s_dist.value_q17 = g_s_sen[i].s_dist.s_formula.a0
+			+ _IQ17mpy(g_s_sen[i].s_dist.s_formula.a1, g_s_sen[i].s_dist.s_formula.x - g_s_sen[i].s_dist.s_formula.x0)
+			+ _IQ17mpy(g_s_sen[i].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[i].s_dist.s_formula.x - g_s_sen[i].s_dist.s_formula.x0, 
+																g_s_sen[i].s_dist.s_formula.x - g_s_sen[i].s_dist.s_formula.x1));
+	}
+*/
 #endif
 	g_timer_500u_u32++;
 #if 0
