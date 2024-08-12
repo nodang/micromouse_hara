@@ -31,6 +31,8 @@ static void _SensorValue(void)
 		if(sw_cnt > kNum)	sw_cnt = 0;
 		else if(sw_cnt < 0)	sw_cnt = kNum;
 
+		if(g_timer_500u_u32 > 0)
+		{
 		VFDPrintf("%1d | %4ld", sw_cnt, g_s_sen[sw_cnt].s_dist.value_q17 >> 17);
 		TxPrintf(" %4u | %4u | %4u | %4u | %4u | %4u | %4u | %4u \n",
 				LBS.value_u16,
@@ -41,6 +43,8 @@ static void _SensorValue(void)
 										R45.value_u16,
 											RFS.value_u16,
 												RBS.value_u16);
+		}
+		g_timer_500u_u32 = 0;
 	
 		if(!SW_R)		{ DELAY_US(SW_DELAY);	sw_cnt++; }
 		else if(!SW_L)	{ DELAY_US(SW_DELAY);	sw_cnt--; }
@@ -317,10 +321,8 @@ static void _CalibrateMotorParam(void)
 #define RESOLUTION_TEST_ACC	1000
 static void _TestMotor(void)
 {
-	int32 test_vel_i32 = 0;
+	int32 test_vel_i32 = 0, test_acc_i32 = 0;
 	_iq17 target_test_vel_q17 = _IQ17(0.0);
-
-	Uint16 test_acc_u16 = 0;
 	_iq15 target_test_acc_q15 = _IQ15(0.0);
 
 	while(SW_U)
@@ -343,13 +345,13 @@ static void _TestMotor(void)
 		// set test acceleration 
 		while(SW_U && SW_D)
 		{
-			if(test_acc_u16 > MAX_ACC) 		test_acc_u16 = MAX_ACC;
-			else if(test_acc_u16 < MIN_ACC)	test_acc_u16 = MIN_ACC;
+			if(test_acc_i32 > MAX_ACC) 		test_acc_i32 = MAX_ACC;
+			else if(test_acc_i32 < MIN_ACC)	test_acc_i32 = MIN_ACC;
 		
-			VFDPrintf("Acc%5u", test_acc_u16);
+			VFDPrintf("Acc%5ld", test_acc_i32);
 
-			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_u16 += RESOLUTION_TEST_ACC; }
-			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_u16 -= RESOLUTION_TEST_ACC; }
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_i32 += RESOLUTION_TEST_ACC; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_i32 -= RESOLUTION_TEST_ACC; }
 		}
 
 		if(!SW_U) continue;		// escape the test function
@@ -361,12 +363,12 @@ static void _TestMotor(void)
 		VFDPrintf("Testing.");
 		TxPrintf("Testing...\n");
 
-		target_test_vel_q17 = _IQ17(test_vel_i32);
+		target_test_vel_q17 = test_vel_i32 << 17;
 		
 		g_s_right_motor.s_speed.target_vel_q17 = target_test_vel_q17;
 		g_s_left_motor.s_speed.target_vel_q17 = target_test_vel_q17;
 
-		target_test_acc_q15 = _IQ15(test_acc_u16);
+		target_test_acc_q15 = test_acc_i32 << 15;
 		
 		g_s_right_motor.s_speed.accel_q15 = target_test_acc_q15;
 		g_s_left_motor.s_speed.accel_q15 = target_test_acc_q15;
@@ -422,10 +424,93 @@ static void _CalibrateRunningParam(void)
 	DELAY_US(SW_DELAY);
 }
 
+#define TEST_TARGET_DIST	_IQ17(1000.0)
 static void _TestMove2Stop(void)
 {
-	VFDPrintf("made yet");
-	DELAY_US(SW_DELAY);
+	int32	test_vel_i32 = 0,
+			test_acc_i32 = 0;
+	_iq17	target_test_vel_q17 = _IQ17(0.0),
+			target_dist_q17 = _IQ17(0.0);
+
+	while(SW_U)
+	{
+		// set test velocity 
+		while(SW_U && SW_D)
+		{
+			if(test_vel_i32 > MAX_VELO)			test_vel_i32 = MAX_VELO;
+			else if(test_vel_i32 < MIN_VELO)	test_vel_i32 = MIN_VELO;
+		
+			VFDPrintf("Vel%5ld", test_vel_i32);
+
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
+		}
+
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
+		
+		// set test acceleration 
+		while(SW_U && SW_D)
+		{
+			if(test_acc_i32 > MAX_ACC) 		test_acc_i32 = MAX_ACC;
+			else if(test_acc_i32 < MIN_ACC)	test_acc_i32 = MIN_ACC;
+		
+			VFDPrintf("Acc%5ld", test_acc_i32);
+
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_i32 += RESOLUTION_TEST_ACC; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_i32 -= RESOLUTION_TEST_ACC; }
+		}
+
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
+
+		// motor test logic
+		InitMotor();
+	
+		VFDPrintf("Testing.");
+		TxPrintf("Testing...\n");
+
+		target_test_vel_q17 = test_vel_i32 << 17;
+
+		if(target_test_vel_q17 < _IQ17(0.0))
+			target_dist_q17 = -TEST_TARGET_DIST;
+		else if(target_test_vel_q17 > _IQ17(0.0))
+			target_dist_q17 = TEST_TARGET_DIST;
+		else
+			target_dist_q17 = _IQ17(0.0);
+		
+		ACTIVATE_MOTOR;
+		MoveToStop(target_dist_q17, test_acc_i32, target_test_vel_q17);
+
+		while(SW_U)
+		{
+			if(target_test_vel_q17 <_IQ17(0.0))
+				if(g_s_left_motor.s_speed.curr_vel_avg_q17 >= _IQ17(0.0) && g_s_left_motor.s_speed.curr_vel_avg_q17 >= _IQ17(0.0)
+				&& !g_s_left_motor.s_speed.decel_b && !g_s_right_motor.s_speed.decel_b)
+							
+			else(target_test_vel_q17 > _IQ17(0.0))
+				if(g_s_left_motor.s_speed.curr_vel_avg_q17 <= _IQ17(0.0) && g_s_left_motor.s_speed.curr_vel_avg_q17 <= _IQ17(0.0)
+				&& !g_s_left_motor.s_speed.decel_b && !g_s_right_motor.s_speed.decel_b)
+			{}
+			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, ltd: %8.2lf, rtd: %8.2lf, lg: %8.2lf, rg: %8.2lf\n", 
+				_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),
+				_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),
+				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
+				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
+				_IQ17toF(g_s_left_motor.s_dist.target_q17),
+				_IQ17toF(g_s_right_motor.s_dist.target_q17),
+				_IQ17toF(g_s_left_motor.s_dist.gone_q17),
+				_IQ17toF(g_s_right_motor.s_dist.gone_q17)
+			);
+		}
+
+		DEACTIVATE_MOTOR;
+
+		VFDPrintf("TestOver");
+		TxPrintf("Test is over.\n");
+
+		while(!SW_U);
+	}
 }
 
 #define TR_MENU_NUM	1

@@ -104,8 +104,8 @@ static void _InitSideSensorFormulaVariable(void)
 }
 
 #define	DIAGONAL_Y0	_IQ17(19.091883092)		// close to wall	- dist = (robot_length/2 - robot_width/2) * sqrt(2)
-#define	DIAGONAL_Y1	_IQ17(99.702056147)		// middle			- dist = wall_inside_width/2 * sqrt(2) - close_to_wall_dist
-#define	DIAGONAL_Y2	_IQ17(206.724350723)	// far from wall	- dist = wall_inside_width/2 + wall_width - robot_width/2 * sqrt(2)
+#define	DIAGONAL_Y1	_IQ17(61.518289963)		// middle			- dist = (wall_inside_width - robot_length)/2 * sqrt(2) + close_to_wall_dist
+#define	DIAGONAL_Y2	_IQ17(194.724350723)	// far from wall	- dist = wall_inside_width*1.5 - robot_width/2 * sqrt(2)
 static void _Init45SensorFormulaVariable(void)
 {
 	Uint16 i, ind[] = {
@@ -175,14 +175,14 @@ static void _InitSensorFormulaVariable(void)
 
 	for(i = 0; i < SEN_NUM; i++)
 	{
-		TxPrintf("SenNum: %u | y0: %.2lf y1: %.2lf y2: %.2lf\n", i,
+		TxPrintf("SenNum: %u | y0: %.2lf y1: %.2lf y2: %.2lf\n\n", i,
 				_IQ17toF(g_s_sen[i].s_dist.s_formula.y0),
 					_IQ17toF(g_s_sen[i].s_dist.s_formula.y1),
 						_IQ17toF(g_s_sen[i].s_dist.s_formula.y2));
 	}
 	for(i = 0; i < SEN_NUM; i++)
 	{
-		TxPrintf("SenNum: %u | a0: %.2lf a1: %.2lf a2: %.2lf\n", i,
+		TxPrintf("SenNum: %u | a0: %.2lf a1: %.2lf a2: %.2lf\n\n", i,
 				_IQ17toF(g_s_sen[i].s_dist.s_formula.a0),
 					_IQ17toF(g_s_sen[i].s_dist.s_formula.a1),
 						_IQ17toF(g_s_sen[i].s_dist.s_formula.a2));
@@ -294,7 +294,8 @@ interrupt void IsrAdc(void)
 	}
 }
 #endif
-#if 1
+
+
 #define SENSOR_ISR_DEBUG ON
 
 #pragma CODE_SECTION(IsrTimer0ForSensor, "ramfuncs2");
@@ -322,9 +323,10 @@ interrupt void IsrTimer0ForSensor(void)
 
 interrupt void IsrAdc(void)
 {
-	static volatile Uint16 ADC_channel_cnt = 0;
-	static volatile Uint32 sen_sum0_u32 = 0, sen_sum1_u32 = 0;
-	_iq17 temp0, temp1;
+	static Uint16 ADC_channel_cnt = 0;
+	static Uint32 sen_sum0_u32 = 0, sen_sum1_u32 = 0;
+	//_iq17 temp0, temp1;
+	//_iq17 temp1;
 
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 
@@ -368,23 +370,22 @@ interrupt void IsrAdc(void)
 	}
 	else
 	{
-		ADC_channel_cnt = 0;
 		g_s_sen[SEN_NUM_R].value_u16 	= (Uint16)(sen_sum0_u32 >> 5); // divide 8 * 3
 		g_s_sen[SEN_NUM_L].value_u16 	= (Uint16)(sen_sum1_u32 >> 5); // divide 8 * 3
-		sen_sum0_u32 = sen_sum1_u32 = 0;
+	
+		ADC_channel_cnt = 0;
+		sen_sum0_u32 = 0;
+		sen_sum1_u32 = 0;
 
 		//==================================================================//
 		// 						Digital IIR LPF Part						//
 		//==================================================================//
 
-		/*================== Right Sensor Data Filtering ===================*/
-		/*
+		//================== Right Sensor Data Filtering ===================//
 		// Data filtering
 		g_s_sen[SEN_NUM_R].s_lpf.input_q17 = ((int32)(g_s_sen[SEN_NUM_R].value_u16)) << 17;
 		g_s_sen[SEN_NUM_R].s_lpf.output_q17 = _IQ17mpyIQX(SENSOR_Kb, 30, g_s_sen[SEN_NUM_R].s_lpf.input_previous_q17 + g_s_sen[SEN_NUM_R].s_lpf.input_q17, 17) 
 			- _IQ17mpyIQX(SENSOR_Ka, 30, g_s_sen[SEN_NUM_R].s_lpf.output_q17, 17);
-		// for position data buff
-		//buff0 = g_s_sen[SEN_NUM_R].s_lpf.output_q17;
 
 		// Data differences filtering
 		g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17 = g_s_sen[SEN_NUM_R].s_lpf.output_q17 - g_s_sen[SEN_NUM_R].s_lpf.output_previous_q17;
@@ -397,32 +398,11 @@ interrupt void IsrAdc(void)
 
 		g_s_sen[SEN_NUM_R].s_lpf_diff.input_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17;
 		g_s_sen[SEN_NUM_R].s_lpf_diff.output_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17;		// Didn't be used
-		*/
-		temp0 = ((int32)(g_s_sen[SEN_NUM_R].value_u16)) << 17;
-		g_s_sen[SEN_NUM_R].s_lpf.output_q17 = _IQ17mpyIQX(SENSOR_Kb, 30, g_s_sen[SEN_NUM_R].s_lpf.input_previous_q17 + temp0, 17) 
-			- _IQ17mpyIQX(SENSOR_Ka, 30, g_s_sen[SEN_NUM_R].s_lpf.output_q17, 17);
-		// for position data buff
-		//buff0 = g_s_sen[SEN_NUM_R].s_lpf.output_q17;
-
-		// Data differences filtering
-		g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17 = g_s_sen[SEN_NUM_R].s_lpf.output_q17 - g_s_sen[SEN_NUM_R].s_lpf.output_previous_q17;
-		g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17 = _IQ17mpyIQX(SENSOR_Kb_DIFF, 30, g_s_sen[SEN_NUM_R].s_lpf_diff.input_previous_q17 + g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17, 17) 
-			- _IQ17mpyIQX(SENSOR_Ka_DIFF, 30, g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17, 17);
-
-		// lpf filtered data are stored.
-		g_s_sen[SEN_NUM_R].s_lpf.input_previous_q17		= temp0;
-		g_s_sen[SEN_NUM_R].s_lpf.output_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf.output_q17;
-
-		g_s_sen[SEN_NUM_R].s_lpf_diff.input_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.input_q17;
-		g_s_sen[SEN_NUM_R].s_lpf_diff.output_previous_q17	= g_s_sen[SEN_NUM_R].s_lpf_diff.output_q17;		// Didn't be used
-		/*================== Left Sensor Data Filtering ===================*/
+		//================== Left Sensor Data Filtering ===================//
 		// Data filtering
 		g_s_sen[SEN_NUM_L].s_lpf.input_q17 = ((int32)(g_s_sen[SEN_NUM_L].value_u16)) << 17;
 		g_s_sen[SEN_NUM_L].s_lpf.output_q17 = _IQ17mpyIQX(SENSOR_Kb, 30, g_s_sen[SEN_NUM_L].s_lpf.input_previous_q17 + g_s_sen[SEN_NUM_L].s_lpf.input_q17, 17) 
 			- _IQ17mpyIQX(SENSOR_Ka, 30, g_s_sen[SEN_NUM_L].s_lpf.output_q17, 17);
-
-		// for position data buff
-		//buff1 = g_s_sen[SEN_NUM_L].s_lpf.output_q17;
 
 		// Data differences filtering
 		g_s_sen[SEN_NUM_L].s_lpf_diff.input_q17 = g_s_sen[SEN_NUM_L].s_lpf.output_q17 - g_s_sen[SEN_NUM_L].s_lpf.output_previous_q17;
@@ -435,9 +415,9 @@ interrupt void IsrAdc(void)
 
 		g_s_sen[SEN_NUM_L].s_lpf_diff.input_previous_q17	= g_s_sen[SEN_NUM_L].s_lpf_diff.input_q17;
 		g_s_sen[SEN_NUM_L].s_lpf_diff.output_previous_q17	= g_s_sen[SEN_NUM_L].s_lpf_diff.output_q17; 	// Didn't be used
-/*
+
 		//==================================================================//
-		//				Estimate Distance according Sensor Data				//0
+		//				Estimate Distance according Sensor Data				//
 		//==================================================================//
 		g_s_sen[SEN_NUM_R].s_dist.s_formula.x = g_s_sen[SEN_NUM_R].s_lpf.output_q17;
 		g_s_sen[SEN_NUM_R].s_dist.value_q17 = g_s_sen[SEN_NUM_R].s_dist.s_formula.a0
@@ -451,6 +431,7 @@ interrupt void IsrAdc(void)
 			+ _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x0, 
 																		g_s_sen[SEN_NUM_L].s_dist.s_formula.x - g_s_sen[SEN_NUM_L].s_dist.s_formula.x1));
 		//==================================================================//
+
 		if(g_sensor_num_u16 < SEN_NUM_HALF_S0)
 			g_sensor_num_u16++;
 		else
@@ -464,7 +445,6 @@ interrupt void IsrAdc(void)
 #endif
 	}
 }
-#endif
 
 static void _CalibrateSideSensors(void)
 {
@@ -545,48 +525,44 @@ static void _CalibrateDiagonalAndFrontSensor(void)
 	g_timer_500u_u32 = 0;
 	while(g_timer_500u_u32 <= 3000);	// wait 1.5 second
 
-	MoveToStop(_IQ17(300.0), _IQ15(MIN_ACC), _IQ17(-140.0));
+	VFDPrintf("Start...");
 
-	while(g_s_left_motor.s_dist.remaining_q17 > _IQ17(0.0) || g_s_right_motor.s_dist.remaining_q17 > _IQ17(0.0))
+	// DIAGONAL_Y0
+	R45.s_dist.s_formula.x0 = R45.s_lpf.output_q17;
+	L45.s_dist.s_formula.x0 = L45.s_lpf.output_q17;
+
+	// FRONT_Y0
+	RF.s_dist.s_formula.x0 = RF.s_lpf.output_q17;
+	LF.s_dist.s_formula.x0 = LF.s_lpf.output_q17;
+			
+	MoveToStop(-FRONT_Y2, MIN_ACC, _IQ17(-140.0));
+
+	while(g_s_left_motor.s_speed.curr_vel_avg_q17 != _IQ17(0.0) || g_s_right_motor.s_speed.curr_vel_avg_q17 != _IQ17(0.0))
 	{
 		gone_dist = (g_s_left_motor.s_dist.gone_q17 + g_s_right_motor.s_dist.gone_q17) >> 1;
-	
-		// Diagonal sensor
-		if(gone_dist <= DIAGONAL_Y0)
+
+		if(gone_dist <= FRONT_Y1)
 		{
-			R45.s_dist.s_formula.x0 = R45.s_lpf.output_q17;
-			L45.s_dist.s_formula.x0 = L45.s_lpf.output_q17;
-		}
-		else if(gone_dist <= DIAGONAL_Y1)
-		{
+			// Diagonal sensor
 			R45.s_dist.s_formula.x1 = R45.s_lpf.output_q17;
 			L45.s_dist.s_formula.x1 = L45.s_lpf.output_q17;
-		}
-		else if(gone_dist <= DIAGONAL_Y2)
-		{
-			R45.s_dist.s_formula.x2 = R45.s_lpf.output_q17;
-			L45.s_dist.s_formula.x2 = L45.s_lpf.output_q17;
-		}
 
-		// Front sensor
-		if(gone_dist <= FRONT_Y0)
-		{
-			RF.s_dist.s_formula.x0 = RF.s_lpf.output_q17;
-			LF.s_dist.s_formula.x0 = LF.s_lpf.output_q17;
-		}
-		else if(gone_dist <= FRONT_Y1)
-		{
+			// Front sensor
 			RF.s_dist.s_formula.x1 = RF.s_lpf.output_q17;
 			LF.s_dist.s_formula.x1 = LF.s_lpf.output_q17;
 		}
 		else if(gone_dist <= FRONT_Y2)
 		{
+			// Front sensor
 			RF.s_dist.s_formula.x2 = RF.s_lpf.output_q17;
 			LF.s_dist.s_formula.x2 = LF.s_lpf.output_q17;
 		}
 	}
 
-	
+	// 45 turn and save logic is needed
+	R45.s_dist.s_formula.x2 = R45.s_lpf.output_q17;
+	L45.s_dist.s_formula.x2 = L45.s_lpf.output_q17;
+
 	TxPrintf("L45: x0 %4ld | x1 %4ld | x2 %4ld\n",
 				L45.s_dist.s_formula.x0 >> 17,
 							L45.s_dist.s_formula.x0 >> 17,
@@ -610,16 +586,16 @@ static void _CalibrateDiagonalAndFrontSensor(void)
 
 void CalibrateSensorValue(void)
 {
-	Uint16 flag = 0;
+	volatile Uint16 flag = 0;
 	
 	InitSensor();
 
 	VFDPrintf("S< Av >F");
 	while(TRUE)
 	{
-		if(SW_R)		{	flag = 2;	break;	}
-		else if(SW_L)	{	flag = 1;	break;	}
-		else if(SW_D)	{	flag = 0;	break;	}
+		if(!SW_R)		{	DELAY_US(SW_DELAY);	flag = 2;	break;	}
+		else if(!SW_L)	{	DELAY_US(SW_DELAY);	flag = 1;	break;	}
+		else if(!SW_D)	{	DELAY_US(SW_DELAY);	flag = 0;	break;	}
 	}
 	while(!SW_R || !SW_L || !SW_D);
 
@@ -627,6 +603,7 @@ void CalibrateSensorValue(void)
 	{
 		VFDPrintf("Set Side");
 		while(SW_D);
+		while(!SW_D);
 	
 		ACTIVATE_SENSOR;
 		_CalibrateSideSensors();			// Non-Auto, so need only sensor
@@ -636,6 +613,7 @@ void CalibrateSensorValue(void)
 	{	
 		VFDPrintf("SetFront");
 		while(SW_D);	// start
+		while(!SW_D);
 
 		ACTIVATE_SYSTEM;
 		_CalibrateDiagonalAndFrontSensor();	// Auto, so need motor & sensor

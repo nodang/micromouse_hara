@@ -43,7 +43,7 @@ static void _to_move_if_possible()
 		else
 		{
 			robot.pos = queue_pop(&path);
-			MoveToMove(BLOCK_WIDTH,_IQ15(3000.0),_IQ17(650.0),_IQ17(650.0));
+			MoveToMove(BLOCK_WIDTH, 3000,_IQ17(650.0),_IQ17(650.0));
 		}
 	}
 }

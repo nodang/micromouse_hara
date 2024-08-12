@@ -107,7 +107,7 @@ typedef volatile struct
 
 __VARIABLE_EXT__ Flags g_s_flags;
 
-__VARIABLE_EXT__ Uint32 g_timer_500u_u32;
+__VARIABLE_EXT__ volatile Uint32 g_timer_500u_u32;
 
 //==========================================================================//
 //                                 SENSOR                                   //

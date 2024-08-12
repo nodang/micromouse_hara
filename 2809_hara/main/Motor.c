@@ -87,7 +87,16 @@ void InitMotor(void)
 #pragma CODE_SECTION(MoveToMove, "ramfuncs2");
 interrupt void IsrTimer2ForMotor(void)
 {
-	int16 i;
+	g_timer_500u_u32++;
+#if 0
+	g_u16motortic++;
+	gDiffAdjCnt++;
+	g_s_right_motor.U16Tick++;	
+	g_s_left_motor.U16Tick++;
+	gUserTimeCnt++;
+	utimetick++;
+#endif
+
 	// QEP값을 받는다
 	// save qep sampling value
 	_sp_r_qep->sample_u16 = (Uint16)(RightQepRegs.QPOSCNT);
@@ -146,12 +155,12 @@ interrupt void IsrTimer2ForMotor(void)
 	
 	// 남은 거리 확인 후 목표 감속 속도 설정
 	// if remainging distance over the stop point set then set target velocity to deceleration target velocity
-	if(_sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17 && _sp_r_speed->decel_b == ON)
+	if(_sp_r_speed->decel_b == ON && _sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17)
 	{
 		_sp_r_speed->target_vel_q17 = _sp_r_speed->decel_vel_q17;
 		_sp_r_speed->decel_b == OFF;
 	}
-	if(_sp_l_dist->remaining_q17 <= _sp_l_dist->decel_point_q17	&& _sp_l_speed->decel_b == ON)
+	if(_sp_l_speed->decel_b == ON && _sp_l_dist->remaining_q17 <= _sp_l_dist->decel_point_q17)
 	{
 		_sp_l_speed->target_vel_q17 = _sp_l_speed->decel_vel_q17;
 		_sp_l_speed->decel_b == OFF;
@@ -297,34 +306,13 @@ interrupt void IsrTimer2ForMotor(void)
 		EPwm1Regs.AQCTLA.bit.ZRO = AQ_CLEAR;
 		EPwm1Regs.AQCTLB.bit.ZRO = AQ_SET;
 
-		EPwm2Regs.AQCTLA.bit.ZRO = AQ_SET;
-		EPwm2Regs.AQCTLB.bit.ZRO = AQ_CLEAR;
+		EPwm2Regs.AQCTLA.bit.ZRO = AQ_CLEAR;
+		EPwm2Regs.AQCTLB.bit.ZRO = AQ_SET;
 		
 		EPwm1Regs.CMPB = EPwm2Regs.CMPB = 0;  	
 	}
-/*
-	for(i = 0; i < SEN_NUM; i++)
-	{
-		//==================================================================//
-		//				Estimate Distance according Sensor Data				//
-		//==================================================================//
-		g_s_sen[i].s_dist.s_formula.x = g_s_sen[i].s_lpf.output_q17;
-		g_s_sen[i].s_dist.value_q17 = g_s_sen[i].s_dist.s_formula.a0
-			+ _IQ17mpy(g_s_sen[i].s_dist.s_formula.a1, g_s_sen[i].s_dist.s_formula.x - g_s_sen[i].s_dist.s_formula.x0)
-			+ _IQ17mpy(g_s_sen[i].s_dist.s_formula.a2, _IQ17mpy(g_s_sen[i].s_dist.s_formula.x - g_s_sen[i].s_dist.s_formula.x0, 
-																g_s_sen[i].s_dist.s_formula.x - g_s_sen[i].s_dist.s_formula.x1));
-	}
-*/
 #endif
-	g_timer_500u_u32++;
-#if 0
-	g_u16motortic++;
-	gDiffAdjCnt++;
-	g_s_right_motor.U16Tick++;	
-	g_s_left_motor.U16Tick++;
-	gUserTimeCnt++;
-	utimetick++;
-#endif
+
 	// initialize motor interrupt flag
 	//CpuTimer2Regs.TCR.bit.TRB = 1;
 
@@ -333,7 +321,7 @@ interrupt void IsrTimer2ForMotor(void)
 }
 
 // 동작 후 정차
-void MoveToStop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
+void MoveToStop(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel)
 {
 	_iq17 curr_vel, dec_dist;
 
@@ -347,7 +335,7 @@ void MoveToStop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 	
 	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
 
-	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
+	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc << 15;	
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
 	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = _IQ17(0.0);
 	_sp_l_speed->decel_b = _sp_r_speed->decel_b = ON;
@@ -359,7 +347,7 @@ void MoveToStop(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel)
 }
 
 // 동작 후 이어서 동작
-void MoveToMove(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
+void MoveToMove(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 {
 	_iq17 curr_vel, dec_dist;
 	
@@ -373,7 +361,7 @@ void MoveToMove(_iq17 tar_dist, _iq15 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 	
 	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
 
-	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc;	
+	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc << 15;	
 	_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = tar_vel;
 	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = dec_vel;
 	_sp_l_speed->decel_b = _sp_r_speed->decel_b = ON;
