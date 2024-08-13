@@ -83,8 +83,6 @@ void InitMotor(void)
 }
 
 #pragma CODE_SECTION(IsrTimer2ForMotor, "ramfuncs2");
-#pragma CODE_SECTION(MoveToStop, "ramfuncs2");
-#pragma CODE_SECTION(MoveToMove, "ramfuncs2");
 interrupt void IsrTimer2ForMotor(void)
 {
 	g_timer_500u_u32++;
@@ -133,7 +131,6 @@ interrupt void IsrTimer2ForMotor(void)
 	_sp_r_dist->gone_q17 += (_sp_r_dist->tick_q27 >> 10);
 	_sp_l_dist->gone_q17 += (_sp_l_dist->tick_q27 >> 10);
 
-#if 1
 	// 사용자가 정해준 거리에 합친 거리를 제거해 남은 거리를 구한다.
 	// calculate remainging distance(from current to end). minus gone distance by target distance
 	_sp_r_dist->remaining_q17 = _IQ17abs(_sp_r_dist->target_q17 - _sp_r_dist->gone_q17);
@@ -141,6 +138,8 @@ interrupt void IsrTimer2ForMotor(void)
 
 	// 펄스당 속도와 QEP를 곱해 현재의 속도를 구한다.
 	// calculate current velocity. multiply the sample by velocity per a pulse
+#if 0
+	// To use as average of velocity
 	_sp_r_speed->curr_vel_q17[3] = _sp_r_speed->curr_vel_q17[2];
 	_sp_r_speed->curr_vel_q17[2] = _sp_r_speed->curr_vel_q17[1];
 	_sp_r_speed->curr_vel_q17[1] = _sp_r_speed->curr_vel_q17[0];
@@ -152,7 +151,12 @@ interrupt void IsrTimer2ForMotor(void)
 	_sp_l_speed->curr_vel_q17[1] = _sp_l_speed->curr_vel_q17[0];
 	_sp_l_speed->curr_vel_q17[0] = _IQ17mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_VEL, 26);
 	_sp_l_speed->curr_vel_avg_q17 = (_sp_l_speed->curr_vel_q17[0] + _sp_l_speed->curr_vel_q17[1] + _sp_l_speed->curr_vel_q17[2] + _sp_l_speed->curr_vel_q17[3]) >> 2;
-	
+#else
+	// To use as velocity directly
+	_sp_r_speed->curr_vel_avg_q17 = _IQ17mpyIQX(_sp_r_qep->sample_q21, 21, PULSE_TO_VEL, 26);
+	_sp_l_speed->curr_vel_avg_q17 = _IQ17mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_VEL, 26);
+#endif
+
 	// 남은 거리 확인 후 목표 감속 속도 설정
 	// if remainging distance over the stop point set then set target velocity to deceleration target velocity
 	if(_sp_r_speed->decel_b == ON && _sp_r_dist->remaining_q17 <= _sp_r_dist->decel_point_q17)
@@ -311,13 +315,83 @@ interrupt void IsrTimer2ForMotor(void)
 		
 		EPwm1Regs.CMPB = EPwm2Regs.CMPB = 0;  	
 	}
-#endif
 
 	// initialize motor interrupt flag
 	//CpuTimer2Regs.TCR.bit.TRB = 1;
 
 	// sensor interrupt start -- sensor shoot
 	StartCpuTimer0();
+}
+
+#pragma CODE_SECTION(_CalcDist, "ramfuncs2");
+#pragma CODE_SECTION(_CalcDistNVel, "ramfuncs2");
+#pragma CODE_SECTION(MoveToStop, "ramfuncs2");
+#pragma CODE_SECTION(MoveToMove, "ramfuncs2");
+
+#define DIV_COEF		1000
+#define DIV_COEF_REV	_IQ30(0.001)
+static _iq17 _CalcDist(_iq17 tar_vel, _iq17 curr_vel, int32 tar_acc)
+{
+	volatile _iq27 temp0, temp1, dist;
+
+	temp0 = _IQ17mpyIQX(tar_vel, 17, DIV_COEF_REV, 30);
+	temp1 = _IQ17mpyIQX(curr_vel, 17, DIV_COEF_REV, 30);
+
+	temp0 = _IQ17mpy(temp0, temp0);
+	temp1 = _IQ17mpy(temp1, temp1);
+	dist = _IQ17div(_IQ17mpyIQX(_IQ17abs(temp0 - temp1), 17, DIV_COEF, 0), _IQ17mpyIQX(tar_acc << 1, 0, DIV_COEF_REV, 30));
+
+	return dist;
+}
+
+static void _CalcDistNVel(_iq17 enter_vel, _iq17 *tar_vel, _iq17 exit_vel, _iq17 tar_dist, _iq17 *dec_dist, int32 tar_acc)
+{
+	volatile _iq17 temp0, temp1, temp2;
+	volatile _iq17 acc_dist, tar_dist_abs;
+
+	acc_dist = _CalcDist(*tar_vel, enter_vel, tar_acc);
+	*dec_dist = _CalcDist(exit_vel, *tar_vel, tar_acc);
+
+	tar_dist_abs = _IQ17abs(tar_dist);
+	TxPrintf("%lf | %lf\n", _IQ17toF(acc_dist), _IQ17toF(*dec_dist));
+
+	if(tar_dist_abs < (acc_dist + *dec_dist))
+	{
+		/*
+		v_in^2 +2as_1 = v_peak^2
+		v_peak^2 = v_out^2 + 2as_2
+
+		v_in^2 + 2as_1 + v_out^2 + 2as_2 = 2v_peak^2
+		
+		v_peak^2 = as + (v_in^2 + v_out^2)/2
+		*/
+		temp0 = _IQ17mpyIQX(enter_vel, 17, DIV_COEF_REV, 30);
+		temp1 = _IQ17mpyIQX(exit_vel, 17, DIV_COEF_REV, 30);
+		
+		temp0 = _IQ17mpy(temp0, temp0) >> 1;
+		temp1 = _IQ17mpy(temp1, temp1) >> 1;
+		temp2 = _IQ17mpy(_IQ17mpyIQX(tar_acc, 0, DIV_COEF_REV, 30), _IQ17mpyIQX(tar_dist_abs, 17, DIV_COEF_REV, 30)) + temp0 + temp1;
+		TxPrintf("%lf | %lf | %lf\n", _IQ17toF(temp0), _IQ17toF(temp1), _IQ17toF(temp2));
+
+		if(*tar_vel < _IQ17(0.0))
+		{
+			*tar_vel = -_IQ17mpyIQX(_IQ17sqrt(temp2), 17, DIV_COEF, 0);
+
+			if(*tar_vel < _IQ17(MIN_VELO))
+				*tar_vel = _IQ17(MIN_VELO);
+		}
+		else
+		{
+			*tar_vel = _IQ17mpyIQX(_IQ17sqrt(temp2), 17, DIV_COEF, 0);
+
+			if(*tar_vel > _IQ17(MAX_VELO))
+				*tar_vel = _IQ17(MAX_VELO);
+		}
+		
+		*dec_dist = _CalcDist(exit_vel, *tar_vel, tar_acc);
+
+		TxPrintf("%lf | %lf\n", _IQ17toF(*tar_vel), _IQ17toF(*dec_dist));
+	}
 }
 
 // 동작 후 정차
@@ -328,10 +402,16 @@ void MoveToStop(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel)
 	StopCpuTimer2();
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
-	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
+
+	// Unify signs of tar_vel and tar_dist
+	if((tar_vel > _IQ17(0.0)&& tar_dist < _IQ17(0.0)) 
+	|| (tar_vel < _IQ17(0.0)&& tar_dist > _IQ17(0.0)))
+		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = -tar_dist;
+	else
+		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
 
 	curr_vel = (_sp_l_speed->curr_vel_avg_q17 + _sp_r_speed->curr_vel_avg_q17) >> 1;
-	_InlineCalcDistNVel(curr_vel, &tar_vel, _IQ17(0.0), tar_dist, &dec_dist, tar_acc);
+	_CalcDistNVel(curr_vel, &tar_vel, _IQ17(0.0), tar_dist, &dec_dist, tar_acc);
 	
 	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
 
@@ -354,10 +434,16 @@ void MoveToMove(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 	StopCpuTimer2();
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
-	_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
+
+	// Unify signs of tar_vel and tar_dist
+	if((tar_vel > _IQ17(0.0) && tar_dist < _IQ17(0.0)) 
+	|| (tar_vel < _IQ17(0.0)&& tar_dist > _IQ17(0.0)))
+		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = -tar_dist;
+	else
+		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
 
 	curr_vel = (_sp_l_speed->curr_vel_avg_q17 + _sp_r_speed->curr_vel_avg_q17) >> 1;
-	_InlineCalcDistNVel(curr_vel, &tar_vel, dec_vel, tar_dist, &dec_dist, tar_acc);
+	_CalcDistNVel(curr_vel, &tar_vel, dec_vel, tar_dist, &dec_dist, tar_acc);
 	
 	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
 

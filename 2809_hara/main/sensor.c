@@ -173,16 +173,18 @@ static void _InitSensorFormulaVariable(void)
 	_Init45SensorFormulaVariable();
 	_InitFrontSensorFormulaVariable();
 
+	TxPrintf("\n");
 	for(i = 0; i < SEN_NUM; i++)
 	{
-		TxPrintf("SenNum: %u | y0: %.2lf y1: %.2lf y2: %.2lf\n\n", i,
+		TxPrintf("SenNum: %u | y0: %.2lf y1: %.2lf y2: %.2lf\n", i,
 				_IQ17toF(g_s_sen[i].s_dist.s_formula.y0),
 					_IQ17toF(g_s_sen[i].s_dist.s_formula.y1),
 						_IQ17toF(g_s_sen[i].s_dist.s_formula.y2));
 	}
+	TxPrintf("\n");
 	for(i = 0; i < SEN_NUM; i++)
 	{
-		TxPrintf("SenNum: %u | a0: %.2lf a1: %.2lf a2: %.2lf\n\n", i,
+		TxPrintf("SenNum: %u | a0: %.2lf a1: %.2lf a2: %.2lf\n", i,
 				_IQ17toF(g_s_sen[i].s_dist.s_formula.a0),
 					_IQ17toF(g_s_sen[i].s_dist.s_formula.a1),
 						_IQ17toF(g_s_sen[i].s_dist.s_formula.a2));

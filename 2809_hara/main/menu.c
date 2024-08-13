@@ -487,11 +487,12 @@ static void _TestMove2Stop(void)
 			if(target_test_vel_q17 <_IQ17(0.0))
 				if(g_s_left_motor.s_speed.curr_vel_avg_q17 >= _IQ17(0.0) && g_s_left_motor.s_speed.curr_vel_avg_q17 >= _IQ17(0.0)
 				&& !g_s_left_motor.s_speed.decel_b && !g_s_right_motor.s_speed.decel_b)
-							
-			else(target_test_vel_q17 > _IQ17(0.0))
+					break;							
+			else if(target_test_vel_q17 > _IQ17(0.0))
 				if(g_s_left_motor.s_speed.curr_vel_avg_q17 <= _IQ17(0.0) && g_s_left_motor.s_speed.curr_vel_avg_q17 <= _IQ17(0.0)
 				&& !g_s_left_motor.s_speed.decel_b && !g_s_right_motor.s_speed.decel_b)
-			{}
+					break;
+			
 			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, ltd: %8.2lf, rtd: %8.2lf, lg: %8.2lf, rg: %8.2lf\n", 
 				_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),
 				_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),
