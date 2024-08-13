@@ -332,28 +332,28 @@ interrupt void IsrTimer2ForMotor(void)
 #define DIV_COEF_REV	_IQ30(0.001)
 static _iq17 _CalcDist(_iq17 tar_vel, _iq17 curr_vel, int32 tar_acc)
 {
-	volatile _iq27 temp0, temp1, dist;
+	volatile _iq21 temp0, temp1, dist;
 
-	temp0 = _IQ17mpyIQX(tar_vel, 17, DIV_COEF_REV, 30);
-	temp1 = _IQ17mpyIQX(curr_vel, 17, DIV_COEF_REV, 30);
+	temp0 = _IQ21mpyIQX(tar_vel, 17, DIV_COEF_REV, 30);
+	temp1 = _IQ21mpyIQX(curr_vel, 17, DIV_COEF_REV, 30);
 
-	temp0 = _IQ17mpy(temp0, temp0);
-	temp1 = _IQ17mpy(temp1, temp1);
-	dist = _IQ17div(_IQ17mpyIQX(_IQ17abs(temp0 - temp1), 17, DIV_COEF, 0), _IQ17mpyIQX(tar_acc << 1, 0, DIV_COEF_REV, 30));
+	temp0 = _IQ21mpy(temp0, temp0);
+	temp1 = _IQ21mpy(temp1, temp1);
+	dist = _IQ17div(_IQ17mpyIQX(_IQ21abs(temp0 - temp1), 21, DIV_COEF, 0), _IQ17mpyIQX(tar_acc << 1, 0, DIV_COEF_REV, 30));
 
 	return dist;
 }
 
 static void _CalcDistNVel(_iq17 enter_vel, _iq17 *tar_vel, _iq17 exit_vel, _iq17 tar_dist, _iq17 *dec_dist, int32 tar_acc)
 {
-	volatile _iq17 temp0, temp1, temp2;
+	volatile _iq21 temp0, temp1, temp2;
 	volatile _iq17 acc_dist, tar_dist_abs;
 
 	acc_dist = _CalcDist(*tar_vel, enter_vel, tar_acc);
 	*dec_dist = _CalcDist(exit_vel, *tar_vel, tar_acc);
 
 	tar_dist_abs = _IQ17abs(tar_dist);
-	TxPrintf("%lf | %lf\n", _IQ17toF(acc_dist), _IQ17toF(*dec_dist));
+	//TxPrintf("%lf | %lf\n", _IQ17toF(acc_dist), _IQ17toF(*dec_dist));
 
 	if(tar_dist_abs < (acc_dist + *dec_dist))
 	{
@@ -365,24 +365,24 @@ static void _CalcDistNVel(_iq17 enter_vel, _iq17 *tar_vel, _iq17 exit_vel, _iq17
 		
 		v_peak^2 = as + (v_in^2 + v_out^2)/2
 		*/
-		temp0 = _IQ17mpyIQX(enter_vel, 17, DIV_COEF_REV, 30);
-		temp1 = _IQ17mpyIQX(exit_vel, 17, DIV_COEF_REV, 30);
+		temp0 = _IQ21mpyIQX(enter_vel, 17, DIV_COEF_REV, 30);
+		temp1 = _IQ21mpyIQX(exit_vel, 17, DIV_COEF_REV, 30);
 		
-		temp0 = _IQ17mpy(temp0, temp0) >> 1;
-		temp1 = _IQ17mpy(temp1, temp1) >> 1;
-		temp2 = _IQ17mpy(_IQ17mpyIQX(tar_acc, 0, DIV_COEF_REV, 30), _IQ17mpyIQX(tar_dist_abs, 17, DIV_COEF_REV, 30)) + temp0 + temp1;
-		TxPrintf("%lf | %lf | %lf\n", _IQ17toF(temp0), _IQ17toF(temp1), _IQ17toF(temp2));
+		temp0 = _IQ21mpy(temp0, temp0) >> 1;
+		temp1 = _IQ21mpy(temp1, temp1) >> 1;
+		temp2 = _IQ21mpy(_IQ21mpyIQX(tar_acc, 0, DIV_COEF_REV, 30), _IQ21mpyIQX(tar_dist_abs, 17, DIV_COEF_REV, 30)) + temp0 + temp1;
+		//TxPrintf("%lf | %lf | %lf\n", _IQ21toF(temp0), _IQ21toF(temp1), _IQ21toF(temp2));
 
 		if(*tar_vel < _IQ17(0.0))
 		{
-			*tar_vel = -_IQ17mpyIQX(_IQ17sqrt(temp2), 17, DIV_COEF, 0);
+			*tar_vel = -_IQ17mpyIQX(_IQ21sqrt(temp2), 21, DIV_COEF, 0);
 
 			if(*tar_vel < _IQ17(MIN_VELO))
 				*tar_vel = _IQ17(MIN_VELO);
 		}
 		else
 		{
-			*tar_vel = _IQ17mpyIQX(_IQ17sqrt(temp2), 17, DIV_COEF, 0);
+			*tar_vel = _IQ17mpyIQX(_IQ21sqrt(temp2), 21, DIV_COEF, 0);
 
 			if(*tar_vel > _IQ17(MAX_VELO))
 				*tar_vel = _IQ17(MAX_VELO);
@@ -390,7 +390,7 @@ static void _CalcDistNVel(_iq17 enter_vel, _iq17 *tar_vel, _iq17 exit_vel, _iq17
 		
 		*dec_dist = _CalcDist(exit_vel, *tar_vel, tar_acc);
 
-		TxPrintf("%lf | %lf\n", _IQ17toF(*tar_vel), _IQ17toF(*dec_dist));
+		//TxPrintf("%lf | %lf\n", _IQ17toF(*tar_vel), _IQ17toF(*dec_dist));
 	}
 }
 
