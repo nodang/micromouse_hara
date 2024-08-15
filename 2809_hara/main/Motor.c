@@ -230,7 +230,7 @@ interrupt void IsrTimer2ForMotor(void)
 	{
 		estimate_position_used_input(&g_s_epi);
 		//estimate_position_used_sensor();
-		//adjust_position();
+		adjust_position();
 	}
 
 	// 모터 PID
@@ -409,11 +409,12 @@ void MoveToStop(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel)
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 
+	tar_dist = _IQ17abs(tar_dist);
+
 	// Unify signs of tar_vel and tar_dist
-	if((tar_vel > _IQ17(0.0)&& tar_dist < _IQ17(0.0)) 
-	|| (tar_vel < _IQ17(0.0)&& tar_dist > _IQ17(0.0)))
+	if(tar_vel < _IQ17(0.0))
 		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = -tar_dist;
-	else
+	else if(tar_vel > _IQ17(0.0))
 		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
 
 	curr_vel = (_sp_l_speed->curr_vel_avg_q17 + _sp_r_speed->curr_vel_avg_q17) >> 1;
@@ -441,11 +442,12 @@ void MoveToMove(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel, _iq17 dec_vel)
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 
+	tar_dist = _IQ17abs(tar_dist);
+
 	// Unify signs of tar_vel and tar_dist
-	if((tar_vel > _IQ17(0.0) && tar_dist < _IQ17(0.0)) 
-	|| (tar_vel < _IQ17(0.0)&& tar_dist > _IQ17(0.0)))
+	if(tar_vel < _IQ17(0.0))
 		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = -tar_dist;
-	else
+	else if(tar_vel > _IQ17(0.0))
 		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = tar_dist;
 
 	curr_vel = (_sp_l_speed->curr_vel_avg_q17 + _sp_r_speed->curr_vel_avg_q17) >> 1;
@@ -567,13 +569,10 @@ void calc_target_velocity_for_turn(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _
 // 회전 동작 후 정지
 void InPlaceTurn(_iq17 tar_th, int32 tar_acc, _iq17 tar_vel)
 {
-	CommandVelocityVariable cmd_vel;
 	_iq17 tar_dist, dec_dist;
 
 	StopCpuTimer2();
 
-	//cmd_vel.linear_q17 = _IQ17(0.0);
-	//cmd_vel.angular_q17 = _IQ17div(tar_vel, ROBOT_WIDTH_DIV2);
 	tar_vel = _IQ17abs(tar_vel);
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
@@ -581,15 +580,23 @@ void InPlaceTurn(_iq17 tar_th, int32 tar_acc, _iq17 tar_vel)
 	// Unify signs of tar_vel and tar_dist
 	tar_dist = _IQ17abs(_IQ17mpy(tar_th, ROBOT_WIDTH_DIV2 - WHEEL_EFECTIVE_RADIAN_DIV2));
 	if(tar_th > _IQ17(0.0))
-	{
+	{		
+		g_s_cmd_vel.linear_q17 = tar_th; //_IQ17(0.0);
+		g_s_cmd_vel.angular_q17 = _IQ17div(tar_vel, ROBOT_WIDTH_DIV2);
+
 		_sp_l_dist->target_q17 = -tar_dist;
 		_sp_r_dist->target_q17 = tar_dist;
 	}
 	else if(tar_th < _IQ17(0.0))
-	{
+	{		
+		g_s_cmd_vel.linear_q17 = tar_th; //_IQ17(0.0);
+		g_s_cmd_vel.angular_q17 = _IQ17div(-tar_vel, ROBOT_WIDTH_DIV2);
+
 		_sp_l_dist->target_q17 = tar_dist;
 		_sp_r_dist->target_q17 = -tar_dist;
 	}
+	else
+		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = _IQ17(0.0);
 
 	_CalcDistNVel(_IQ17(0.0), &tar_vel, _IQ17(0.0), tar_dist, &dec_dist, tar_acc);
 	
@@ -606,6 +613,9 @@ void InPlaceTurn(_iq17 tar_th, int32 tar_acc, _iq17 tar_vel)
 		_sp_l_speed->target_vel_q17 = tar_vel;
 		_sp_r_speed->target_vel_q17 = -tar_vel;
 	}
+	else
+		_sp_l_speed->target_vel_q17 = _sp_r_speed->target_vel_q17 = _IQ17(0.0);
+
 	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = _IQ17(0.0);
 	_sp_l_speed->decel_b = _sp_r_speed->decel_b = ON;
 

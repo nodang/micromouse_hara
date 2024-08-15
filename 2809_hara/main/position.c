@@ -110,6 +110,7 @@ static void _adjust_theta(PositionVariable *sp_pos)
 void init_position(void)
 {
 	memset((void *)&g_s_epi, 0x00, sizeof(g_s_epi));
+	memset((void *)&g_s_ref_pos, 0x00, sizeof(g_s_ref_pos));
 }
 
 void estimate_position_used_input(PositionVariable *sp_pos)
@@ -119,13 +120,13 @@ void estimate_position_used_input(PositionVariable *sp_pos)
 	temp = (g_s_left_motor.s_speed.curr_vel_avg_q17 + g_s_right_motor.s_speed.curr_vel_avg_q17) >> 1;
 	sp_pos->v_q17 = _IQ17mpyIQX(temp, 17, TIME_TICK, 30);
 
-	temp = _IQ25div(_IQ25(1.0), _IQ15(81.0));
+	temp = _IQ25div(_IQ25(1.0), _IQ25(81.0));
 	temp = _IQ17mpyIQX(g_s_right_motor.s_speed.curr_vel_avg_q17 - g_s_left_motor.s_speed.curr_vel_avg_q17, 17, temp, 25);
 	sp_pos->w_q17 = _IQ17mpyIQX(temp, 17, TIME_TICK, 30);
 
 	sp_pos->th_q17 += sp_pos->w_q17;
-	if(sp_pos->th_q17 > _IQ17(M_PI))		sp_pos->th_q17 -= _IQ18(M_PI);
-	else if(sp_pos->th_q17 < _IQ17(M_PI))	sp_pos->th_q17 += _IQ18(M_PI);
+	if(sp_pos->th_q17 > _IQ18(M_PI))		sp_pos->th_q17 -= _IQ18(M_PI);
+	else if(sp_pos->th_q17 < _IQ18(-M_PI))	sp_pos->th_q17 += _IQ18(M_PI);
 
 	//_adjust_theta(sp_pos);
 
@@ -133,12 +134,41 @@ void estimate_position_used_input(PositionVariable *sp_pos)
 	sp_pos->x_q17 += _IQ17mpy(_IQ17sin(sp_pos->th_q17), sp_pos->v_q17);
 }
 
+void CalcRefPosition(PositionVariable *sp_pos)
+{
+	if(_IQ17abs(sp_pos->th_q17) < _IQ17abs(g_s_cmd_vel.linear_q17))
+	{
+		//sp_pos->v_q17 = g_s_cmd_vel.linear_q17;
+		sp_pos->w_q17 = g_s_cmd_vel.angular_q17;
 
+		sp_pos->th_q17 += sp_pos->w_q17;
+		if(sp_pos->th_q17 > _IQ18(M_PI))		sp_pos->th_q17 -= _IQ18(M_PI);
+		else if(sp_pos->th_q17 < _IQ18(-M_PI))	sp_pos->th_q17 += _IQ18(M_PI);
+
+		//sp_pos->x_q17;
+		//sp_pos->y_q17;
+	}
+}
+
+#define KP_	_IQ17(0.1)
 void adjust_position(void)
 {
-	
+	_iq17 error, error_p;
 
-	g_s_left_motor.s_adj.adj_ratio_q17 = 0;
-	g_s_right_motor.s_adj.adj_ratio_q17 = 0;
+	CalcRefPosition(&g_s_ref_pos);
+
+	if(g_s_cmd_vel.linear_q17 < _IQ17(0.0))
+		error = g_s_epi.th_q17 - g_s_ref_pos.th_q17;
+	else
+		error = g_s_ref_pos.th_q17 - g_s_epi.th_q17;
+
+	error_p = _IQ17(1.0) + _IQ17mpy(KP_, error);
+	if(error_p < _IQ17(0.0))
+		error_p = _IQ17(0.0);
+	else if(error_p > _IQ17(2.0))
+		error_p = _IQ17(2.0);
+
+	g_s_left_motor.s_adj.adj_ratio_q17 = error_p;
+	g_s_right_motor.s_adj.adj_ratio_q17 = error_p;
 }
 

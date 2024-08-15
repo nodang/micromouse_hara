@@ -204,6 +204,20 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 								g_s_flags.motor_pwm_b = OFF;	\
 							}while(0)
 
+#define ACTIVATE_MOTOR_ADJ	do {								\
+								g_s_flags.motor_pwm_b = ON;		\
+								STANDBY_ON;						\
+								g_s_flags.adj_pos_b = ON;		\
+								StartCpuTimer2();				\
+							}while(0)
+
+#define DEACTIVATE_MOTOR_ADJ do {								\
+								StopCpuTimer2();				\
+								g_s_flags.adj_pos_b = OFF;		\
+								STANDBY_OFF;					\
+								g_s_flags.motor_pwm_b = OFF;	\
+							}while(0)
+
 #define ACTIVATE_SYSTEM		do {								\
 								g_s_flags.sensor_ir_b = ON;		\
 								g_s_flags.motor_pwm_b = ON;		\
@@ -306,7 +320,7 @@ typedef volatile struct
 			w_q17;
 }PositionVariable;
 
-__VARIABLE_EXT__ PositionVariable	g_s_epi;
+__VARIABLE_EXT__ PositionVariable	g_s_epi, g_s_ref_pos;
 
 
 //==========================================================================//

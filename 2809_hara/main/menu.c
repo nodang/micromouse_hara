@@ -555,7 +555,7 @@ static void _TestInPlaceTurn(void)
 		// set test theta
 		while(SW_U && SW_D)
 		{
-			if(test_th_ind >= TEST_TH_ARRAY_NUM) 	test_th_ind = TEST_TH_ARRAY_NUM;
+			if(test_th_ind >= TEST_TH_ARRAY_NUM) 	test_th_ind = TEST_TH_ARRAY_NUM - 1;
 			else if(test_th_ind < 0)				test_th_ind = 0;
 		
 			VFDPrintf("Th %+5ld", test_th_i32[test_th_ind]);
@@ -575,27 +575,26 @@ static void _TestInPlaceTurn(void)
 
 		target_th_q17 = _IQ17mpyIQX(test_th_i32[test_th_ind], 0, _IQ30(0.017453292), 30);
 		
-		ACTIVATE_MOTOR;
+		ACTIVATE_MOTOR_ADJ;
 		InPlaceTurn(target_th_q17, test_acc_i32, test_vel_i32 << 17);
 
 		while(SW_U)
 		{
-			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, ltd: %8.2lf, rtd: %8.2lf, lg: %8.2lf, rg: %8.2lf\n", 
+			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, ltd: %8.2lf, rtd: %8.2lf, th: %8.2lf\n", 
 				_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),
 				_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),
 				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
 				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
 				_IQ17toF(g_s_left_motor.s_dist.target_q17),
 				_IQ17toF(g_s_right_motor.s_dist.target_q17),
-				_IQ17toF(g_s_left_motor.s_dist.gone_q17),
-				_IQ17toF(g_s_right_motor.s_dist.gone_q17)
+				_IQ17toF(_IQ17mpy(g_s_epi.th_q17, _IQ17(57.295779513082320876798154814105)))
 			);
 		}
 
-		DEACTIVATE_MOTOR;
+		DEACTIVATE_MOTOR_ADJ;
 
 		VFDPrintf("Th:%5.2lf", _IQ17toF(_IQ17mpy(g_s_epi.th_q17, _IQ17(57.295779513082320876798154814105))));
-		TxPrintf("Test is over. Result: %lf\n", _IQ17toF(_IQ17mpy(g_s_epi.th_q17, _IQ17(57.295779513082320876798154814105))));
+		TxPrintf("Test is over.\n");
 
 		while(!SW_U);
 	}
