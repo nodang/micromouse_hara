@@ -30,10 +30,14 @@
 
 #define WHEEL_RADIUS	_IQ17(37.699111843)
 
-#define PULSE_TO_DIST	_IQ30(0.0092038847273138)
-// 바퀴지름 *PHI[75.398223686155037723103441198708]/(512*4)/기어비(4.)
-#define PULSE_TO_VEL	_IQ26(18.407769454627695)	
-// 바퀴지름 *PHI[75.398223686155037723103441198708]/(512*4)/기어비(4.)/0.0005
+#define PULSE_TO_DIST	_IQ30(0.00938796242186012432587469604769)
+// 바퀴지름 *PHI[76.906188159878138477565510022682]/(512*4)/기어비(4.)
+#define PULSE_TO_VEL	_IQ26(18.775924843720248651749392095381)	
+// 바퀴지름 *PHI[76.906188159878138477565510022682]/(512*4)/기어비(4.)/0.0005
+
+#define WHEEL_EFECTIVE_RADIAN		_IQ17(9.87)
+#define WHEEL_EFECTIVE_RADIAN_DIV2	_IQ17(4.935)
+
 
 enum RunType {
 	STR = 0x00,
@@ -80,6 +84,8 @@ void InitMotor(void)
 	_InitMotorSturcture(&g_s_left_motor);
 
 	memset((void *)&g_s_cmd_vel, 0x00, sizeof(CommandVelocityVariable));
+
+	init_position();
 }
 
 #pragma CODE_SECTION(IsrTimer2ForMotor, "ramfuncs2");
@@ -222,7 +228,7 @@ interrupt void IsrTimer2ForMotor(void)
 	// 자세 보정
 	if(g_s_flags.adj_pos_b)
 	{
-		//estimate_position_used_input();
+		estimate_position_used_input(&g_s_epi);
 		//estimate_position_used_sensor();
 		//adjust_position();
 	}
@@ -541,7 +547,7 @@ void calc_target_velocity_for_turn(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _
 		temp = r_dist + l_dist + (l_dist << 1);
 
 		_sp_r_dist->target_q17 = _IQ17mpy(tar_rad + ROBOT_WIDTH_DIV2, tar_th) + temp;
-		_sp_r_dist->target_q17 = _IQ17mpy(tar_rad - ROBOT_WIDTH_DIV2, tar_th) + temp;
+		_sp_l_dist->target_q17 = _IQ17mpy(tar_rad - ROBOT_WIDTH_DIV2, tar_th) + temp;
 	}
 	else
 	{
@@ -554,8 +560,59 @@ void calc_target_velocity_for_turn(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _
 		temp = l_dist + r_dist + (r_dist << 1);
 
 		_sp_r_dist->target_q17 = _IQ17mpy(tar_rad - ROBOT_WIDTH_DIV2, tar_th) + temp;
-		_sp_r_dist->target_q17 = _IQ17mpy(tar_rad + ROBOT_WIDTH_DIV2, tar_th) + temp;
+		_sp_l_dist->target_q17 = _IQ17mpy(tar_rad + ROBOT_WIDTH_DIV2, tar_th) + temp;
 	}
+}
+
+// 회전 동작 후 정지
+void InPlaceTurn(_iq17 tar_th, int32 tar_acc, _iq17 tar_vel)
+{
+	CommandVelocityVariable cmd_vel;
+	_iq17 tar_dist, dec_dist;
+
+	StopCpuTimer2();
+
+	//cmd_vel.linear_q17 = _IQ17(0.0);
+	//cmd_vel.angular_q17 = _IQ17div(tar_vel, ROBOT_WIDTH_DIV2);
+	tar_vel = _IQ17abs(tar_vel);
+
+	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
+
+	// Unify signs of tar_vel and tar_dist
+	tar_dist = _IQ17abs(_IQ17mpy(tar_th, ROBOT_WIDTH_DIV2 - WHEEL_EFECTIVE_RADIAN_DIV2));
+	if(tar_th > _IQ17(0.0))
+	{
+		_sp_l_dist->target_q17 = -tar_dist;
+		_sp_r_dist->target_q17 = tar_dist;
+	}
+	else if(tar_th < _IQ17(0.0))
+	{
+		_sp_l_dist->target_q17 = tar_dist;
+		_sp_r_dist->target_q17 = -tar_dist;
+	}
+
+	_CalcDistNVel(_IQ17(0.0), &tar_vel, _IQ17(0.0), tar_dist, &dec_dist, tar_acc);
+	
+	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
+
+	_sp_l_speed->accel_q15 = _sp_r_speed->accel_q15 = tar_acc << 15;
+	if(tar_th > _IQ17(0.0))
+	{
+		_sp_l_speed->target_vel_q17 = -tar_vel;
+		_sp_r_speed->target_vel_q17 = tar_vel;
+	}
+	else if(tar_th < _IQ17(0.0))
+	{
+		_sp_l_speed->target_vel_q17 = tar_vel;
+		_sp_r_speed->target_vel_q17 = -tar_vel;
+	}
+	_sp_l_speed->decel_vel_q17 = _sp_r_speed->decel_vel_q17 = _IQ17(0.0);
+	_sp_l_speed->decel_b = _sp_r_speed->decel_b = ON;
+
+	_sp_r_dist->remaining_q17 = _IQ17abs(_sp_r_dist->target_q17 - _sp_r_dist->gone_q17);
+	_sp_l_dist->remaining_q17 = _IQ17abs(_sp_l_dist->target_q17 - _sp_l_dist->gone_q17);
+
+	StartCpuTimer2();
 }
 
 // 회전 동작 후 이어서 동작
@@ -568,7 +625,6 @@ void turn_and_move(_iq17 tar_th, _iq17 tar_rad, _iq15 tar_acc, _iq17 tar_vel, _i
 
 	StartCpuTimer2();
 }
-
 /*
 // motor_vel = cmd_vel.linear_vel - cmd_vel.angular_vel * robot_width/2 
 static inline void _inline_move_to_func(CommandVelocityVariable *p_cmd_vel, _iq17 *p_temp_q17, Uint16 run_type)

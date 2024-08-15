@@ -338,7 +338,7 @@ static void _TestMotor(void)
 			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
 			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
 		}
-
+		while(!SW_D);
 		if(!SW_U) continue;		// escape the test function
 		DELAY_US(SW_DELAY);
 		
@@ -353,7 +353,7 @@ static void _TestMotor(void)
 			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_i32 += RESOLUTION_TEST_ACC; }
 			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_i32 -= RESOLUTION_TEST_ACC; }
 		}
-
+		while(!SW_D);
 		if(!SW_U) continue;		// escape the test function
 		DELAY_US(SW_DELAY);
 
@@ -429,8 +429,7 @@ static void _TestMove2Stop(void)
 {
 	int32	test_vel_i32 = 0,
 			test_acc_i32 = 0;
-	_iq17	target_test_vel_q17 = _IQ17(0.0),
-			target_dist_q17 = _IQ17(0.0);
+	_iq17	target_dist_q17 = _IQ17(0.0);
 
 	while(SW_U)
 	{
@@ -445,7 +444,7 @@ static void _TestMove2Stop(void)
 			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
 			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
 		}
-
+		while(!SW_D);
 		if(!SW_U) continue;		// escape the test function
 		DELAY_US(SW_DELAY);
 		
@@ -460,7 +459,7 @@ static void _TestMove2Stop(void)
 			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_i32 += RESOLUTION_TEST_ACC; }
 			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_i32 -= RESOLUTION_TEST_ACC; }
 		}
-
+		while(!SW_D);
 		if(!SW_U) continue;		// escape the test function
 		DELAY_US(SW_DELAY);
 
@@ -470,25 +469,23 @@ static void _TestMove2Stop(void)
 		VFDPrintf("Testing.");
 		TxPrintf("Testing...\n");
 
-		target_test_vel_q17 = test_vel_i32 << 17;
-
-		if(target_test_vel_q17 < _IQ17(0.0))
+		if(test_vel_i32 < 0)
 			target_dist_q17 = -TEST_TARGET_DIST;
-		else if(target_test_vel_q17 > _IQ17(0.0))
+		else if(test_vel_i32 > 0)
 			target_dist_q17 = TEST_TARGET_DIST;
 		else
 			target_dist_q17 = _IQ17(0.0);
 		
 		ACTIVATE_MOTOR;
-		MoveToStop(target_dist_q17, test_acc_i32, target_test_vel_q17);
+		MoveToStop(target_dist_q17, test_acc_i32, test_vel_i32 << 17);
 
 		while(SW_U)
 		{
-			if(target_test_vel_q17 <_IQ17(0.0))
+			if(test_vel_i32 < 0)
 				if(g_s_left_motor.s_speed.curr_vel_avg_q17 >= _IQ17(0.0) && g_s_left_motor.s_speed.curr_vel_avg_q17 >= _IQ17(0.0)
 				&& !g_s_left_motor.s_speed.decel_b && !g_s_right_motor.s_speed.decel_b)
 					break;							
-			else if(target_test_vel_q17 > _IQ17(0.0))
+			else if(test_vel_i32 > 0)
 				if(g_s_left_motor.s_speed.curr_vel_avg_q17 <= _IQ17(0.0) && g_s_left_motor.s_speed.curr_vel_avg_q17 <= _IQ17(0.0)
 				&& !g_s_left_motor.s_speed.decel_b && !g_s_right_motor.s_speed.decel_b)
 					break;
@@ -514,15 +511,106 @@ static void _TestMove2Stop(void)
 	}
 }
 
-#define TR_MENU_NUM	1
+#define TEST_TH_ARRAY_NUM	9
+static void _TestInPlaceTurn(void)
+{
+	int32	test_vel_i32 = 0,
+			test_acc_i32 = 0,
+			test_th_i32[] = { -180, -135, -90, -45, 0, 45, 90, 135, 180 },
+			test_th_ind = 4;
+	_iq17 	target_th_q17;
+
+	while(SW_U)
+	{
+		// set test velocity 
+		while(SW_U && SW_D)
+		{
+			if(test_vel_i32 > MAX_VELO)			test_vel_i32 = MAX_VELO;
+			else if(test_vel_i32 < MIN_VELO)	test_vel_i32 = MIN_VELO;
+		
+			VFDPrintf("Vel%5ld", test_vel_i32);
+
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
+		}
+		while(!SW_D);
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
+		
+		// set test acceleration 
+		while(SW_U && SW_D)
+		{
+			if(test_acc_i32 > MAX_ACC) 		test_acc_i32 = MAX_ACC;
+			else if(test_acc_i32 < MIN_ACC)	test_acc_i32 = MIN_ACC;
+		
+			VFDPrintf("Acc%5ld", test_acc_i32);
+
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_i32 += RESOLUTION_TEST_ACC; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_i32 -= RESOLUTION_TEST_ACC; }
+		}
+		while(!SW_D);
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
+
+		// set test theta
+		while(SW_U && SW_D)
+		{
+			if(test_th_ind >= TEST_TH_ARRAY_NUM) 	test_th_ind = TEST_TH_ARRAY_NUM;
+			else if(test_th_ind < 0)				test_th_ind = 0;
+		
+			VFDPrintf("Th %+5ld", test_th_i32[test_th_ind]);
+
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_th_ind++; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_th_ind--; }
+		}
+		while(!SW_D);
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
+
+		// motor test logic
+		InitMotor();
+	
+		VFDPrintf("Testing.");
+		TxPrintf("Testing...\n");
+
+		target_th_q17 = _IQ17mpyIQX(test_th_i32[test_th_ind], 0, _IQ30(0.017453292), 30);
+		
+		ACTIVATE_MOTOR;
+		InPlaceTurn(target_th_q17, test_acc_i32, test_vel_i32 << 17);
+
+		while(SW_U)
+		{
+			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, ltd: %8.2lf, rtd: %8.2lf, lg: %8.2lf, rg: %8.2lf\n", 
+				_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),
+				_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),
+				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
+				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
+				_IQ17toF(g_s_left_motor.s_dist.target_q17),
+				_IQ17toF(g_s_right_motor.s_dist.target_q17),
+				_IQ17toF(g_s_left_motor.s_dist.gone_q17),
+				_IQ17toF(g_s_right_motor.s_dist.gone_q17)
+			);
+		}
+
+		DEACTIVATE_MOTOR;
+
+		VFDPrintf("Th:%5.2lf", _IQ17toF(_IQ17mpy(g_s_epi.th_q17, _IQ17(57.295779513082320876798154814105))));
+		TxPrintf("Test is over. Result: %lf\n", _IQ17toF(_IQ17mpy(g_s_epi.th_q17, _IQ17(57.295779513082320876798154814105))));
+
+		while(!SW_U);
+	}
+}
+
+
+#define TR_MENU_NUM	2
 static void _TestRunning(void)
 {
 	static void (*menu_func_[])() = {
-		_TestMove2Stop
+		_TestMove2Stop, _TestInPlaceTurn
 	};
 
 	static const char *kMenuChar_[] = {
-		"mov2stop"
+		"mov2stop", "InPl Trn"
 	};
 
 	int16 menu_cnt_i16 = 0;

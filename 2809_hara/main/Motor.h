@@ -21,5 +21,7 @@ extern interrupt void IsrTimer2ForMotor(void);
 extern void MoveToStop(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel);
 extern void MoveToMove(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel, _iq17 dec_vel);
 
+extern void InPlaceTurn(_iq17 tar_th, int32 tar_acc, _iq17 tar_vel);
+
 #endif
 

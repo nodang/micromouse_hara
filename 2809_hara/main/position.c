@@ -119,12 +119,13 @@ void estimate_position_used_input(PositionVariable *sp_pos)
 	temp = (g_s_left_motor.s_speed.curr_vel_avg_q17 + g_s_right_motor.s_speed.curr_vel_avg_q17) >> 1;
 	sp_pos->v_q17 = _IQ17mpyIQX(temp, 17, TIME_TICK, 30);
 
-	temp = _IQ17div(g_s_left_motor.s_speed.curr_vel_avg_q17 - g_s_right_motor.s_speed.curr_vel_avg_q17, ROBOT_WIDTH);
+	temp = _IQ25div(_IQ25(1.0), _IQ15(81.0));
+	temp = _IQ17mpyIQX(g_s_right_motor.s_speed.curr_vel_avg_q17 - g_s_left_motor.s_speed.curr_vel_avg_q17, 17, temp, 25);
 	sp_pos->w_q17 = _IQ17mpyIQX(temp, 17, TIME_TICK, 30);
 
 	sp_pos->th_q17 += sp_pos->w_q17;
-	if(sp_pos->th_q17 > _IQ17(M_PI))		sp_pos->th_q17 -= _IQ17(M_PI) << 1;
-	else if(sp_pos->th_q17 < _IQ17(M_PI))	sp_pos->th_q17 += _IQ17(M_PI) << 1;
+	if(sp_pos->th_q17 > _IQ17(M_PI))		sp_pos->th_q17 -= _IQ18(M_PI);
+	else if(sp_pos->th_q17 < _IQ17(M_PI))	sp_pos->th_q17 += _IQ18(M_PI);
 
 	//_adjust_theta(sp_pos);
 
