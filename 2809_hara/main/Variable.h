@@ -266,6 +266,7 @@ typedef volatile struct
 typedef volatile struct
 {
 	_iq17	adj_ratio_q17;
+	_iq17	adj_additional_q17;
 }AdjustPositionVariable;
 
 typedef volatile struct

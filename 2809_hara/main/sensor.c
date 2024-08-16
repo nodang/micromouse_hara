@@ -197,7 +197,6 @@ void InitSensor(void)
 
 	g_sensor_num_u16 = 0;
 
-	ReadSensorData();
 	_InitSensorFormulaVariable();	// Need to data from EEPROM or sensor setting
 }
 

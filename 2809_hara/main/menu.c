@@ -247,24 +247,22 @@ static void _Accelaration(void)
 }
 
 #define PID_NUM	3
-#define PID_RESOLUTION	1
+//#define PID_RESOLUTION	1
 #define PID_MAX 1000
-#define PID_MIM 0
+//#define PID_MIM 0
 static void _MotorPID(void)
 {
 	Uint32 *p_param[] = { &g_motor_kp_u32, &g_motor_ki_u32, &g_motor_kd_u32 };
 	const char *kVfdChar[] = { "kp", "ki", "kd" };
 	const Uint32 kParamMax[] = { PID_MAX, PID_MAX, PID_MAX };
-	const Uint32 kParamMin[] = { PID_MIM, PID_MIM, PID_MIM };
+	//const Uint32 kParamMin[] = { PID_MIM, PID_MIM, PID_MIM };
+	const Uint32 kParamResolution[] = { 10, 1, 10 };
 
 	Uint16 sw_cnt = 0;
 	const int16 kNum = PID_NUM - 1;
 
 	while(SW_U)
 	{
-		if(*p_param[sw_cnt] > kParamMax[sw_cnt])		*p_param[sw_cnt] = kParamMax[sw_cnt];
-		else if(*p_param[sw_cnt] < kParamMin[sw_cnt])	*p_param[sw_cnt] = kParamMin[sw_cnt];
-	
 		VFDPrintf("%c%c%6lu", kVfdChar[sw_cnt][0], kVfdChar[sw_cnt][1], *p_param[sw_cnt]);
 
 		if (!SW_D)	
@@ -274,8 +272,20 @@ static void _MotorPID(void)
 			if(sw_cnt < kNum)	sw_cnt++;
 			else				sw_cnt = 0;
 		}
-		else if(!SW_R)	{ DELAY_US(SW_DELAY_HALF);	*p_param[sw_cnt] += PID_RESOLUTION; }
-		else if(!SW_L)	{ DELAY_US(SW_DELAY_HALF);	*p_param[sw_cnt] -= PID_RESOLUTION; }
+		else if(!SW_R)
+		{
+			DELAY_US(SW_DELAY_HALF);
+
+			if(*p_param[sw_cnt] <= (kParamMax[sw_cnt] - kParamResolution[sw_cnt]))
+				*p_param[sw_cnt] += kParamResolution[sw_cnt];
+		}
+		else if(!SW_L)
+		{
+			DELAY_US(SW_DELAY_HALF);
+
+			if(*p_param[sw_cnt] >= kParamResolution[sw_cnt])
+				*p_param[sw_cnt] -= kParamResolution[sw_cnt];
+		}
 	}
 
 	WriteMotorData();
@@ -580,13 +590,14 @@ static void _TestInPlaceTurn(void)
 
 		while(SW_U)
 		{
-			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, ltd: %8.2lf, rtd: %8.2lf, th: %8.2lf\n", 
+			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, ltd: %8.2lf, rtd: %8.2lf, ref_th: %8.2lf, th: %8.2lf\n", 
 				_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),
 				_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),
 				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
 				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
 				_IQ17toF(g_s_left_motor.s_dist.target_q17),
 				_IQ17toF(g_s_right_motor.s_dist.target_q17),
+				_IQ17toF(_IQ17mpy(g_s_ref_pos.th_q17, _IQ17(57.295779513082320876798154814105))),
 				_IQ17toF(_IQ17mpy(g_s_epi.th_q17, _IQ17(57.295779513082320876798154814105)))
 			);
 		}

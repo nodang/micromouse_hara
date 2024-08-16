@@ -243,14 +243,13 @@ interrupt void IsrTimer2ForMotor(void)
 	g_s_right_motor.err_vel_sum_q17 += g_s_right_motor.err_vel_q17[0];
 
 	g_s_right_motor.proportional_term_q17 = _IQ17mpy(g_s_right_motor.kp_q17, g_s_right_motor.err_vel_q17[0]);
-	g_s_right_motor.derivative_term_q17 = g_s_right_motor.err_vel_q17[1] - g_s_right_motor.err_vel_q17[2];
-	g_s_right_motor.derivative_term_q17 = _IQ17mpy(g_s_right_motor.kd_q17, ((g_s_right_motor.err_vel_q17[0] - g_s_right_motor.err_vel_q17[3]) + g_s_right_motor.derivative_term_q17 + (g_s_right_motor.derivative_term_q17 << 1)));
+	g_s_right_motor.derivative_term_q17 = _IQ17mpy(g_s_right_motor.kd_q17, ((g_s_right_motor.err_vel_q17[0] - g_s_right_motor.err_vel_q17[3]) + ((g_s_right_motor.err_vel_q17[1] - g_s_right_motor.err_vel_q17[2]) << 1)));
 	g_s_right_motor.integral_term_q17 = _IQ17mpy(g_s_right_motor.ki_q17, g_s_right_motor.err_vel_sum_q17);
 
 	if(g_s_right_motor.integral_term_q17 > MAX_I_TERM)			g_s_right_motor.integral_term_q17 = MAX_I_TERM;
 	else if(g_s_right_motor.integral_term_q17 < MIN_I_TERM)		g_s_right_motor.integral_term_q17 = MIN_I_TERM;
 
-	g_s_right_motor.pid_output_q17 += g_s_right_motor.proportional_term_q17 + g_s_right_motor.derivative_term_q17 + g_s_right_motor.integral_term_q17;
+	g_s_right_motor.pid_output_q17 += g_s_right_motor.proportional_term_q17 + g_s_right_motor.derivative_term_q17 + g_s_right_motor.integral_term_q17 + g_s_right_motor.s_adj.adj_additional_q17;
 
 
 	g_s_left_motor.err_vel_sum_q17 -= g_s_left_motor.err_vel_q17[3];
@@ -261,14 +260,13 @@ interrupt void IsrTimer2ForMotor(void)
 	g_s_left_motor.err_vel_sum_q17 += g_s_left_motor.err_vel_q17[0];
 
 	g_s_left_motor.proportional_term_q17 = _IQ17mpy(g_s_left_motor.kp_q17,  g_s_left_motor.err_vel_q17[0]);
-	g_s_left_motor.derivative_term_q17 = g_s_left_motor.err_vel_q17[1] - g_s_left_motor.err_vel_q17[2];
-	g_s_left_motor.derivative_term_q17 = _IQ17mpy(g_s_left_motor.kd_q17, ((g_s_left_motor.err_vel_q17[0] - g_s_left_motor.err_vel_q17[3]) + g_s_left_motor.derivative_term_q17 + (g_s_left_motor.derivative_term_q17 << 1)));
+	g_s_left_motor.derivative_term_q17 = _IQ17mpy(g_s_left_motor.kd_q17, ((g_s_left_motor.err_vel_q17[0] - g_s_left_motor.err_vel_q17[3]) + ((g_s_left_motor.err_vel_q17[1] - g_s_left_motor.err_vel_q17[2]) << 1)));
 	g_s_left_motor.integral_term_q17 = _IQ17mpy(g_s_left_motor.ki_q17, g_s_left_motor.err_vel_sum_q17);
 
 	if(g_s_left_motor.integral_term_q17 > MAX_I_TERM)			g_s_left_motor.integral_term_q17 = MAX_I_TERM;
 	else if( g_s_left_motor.integral_term_q17 < MIN_I_TERM)		g_s_left_motor.integral_term_q17 = MIN_I_TERM;
 
-	g_s_left_motor.pid_output_q17 += g_s_left_motor.proportional_term_q17 + g_s_left_motor.derivative_term_q17 + g_s_left_motor.integral_term_q17;
+	g_s_left_motor.pid_output_q17 += g_s_left_motor.proportional_term_q17 + g_s_left_motor.derivative_term_q17 + g_s_left_motor.integral_term_q17 + g_s_left_motor.s_adj.adj_additional_q17;
 
 	// 
 	if(g_s_flags.motor_pwm_b)
@@ -574,14 +572,18 @@ void InPlaceTurn(_iq17 tar_th, int32 tar_acc, _iq17 tar_vel)
 	StopCpuTimer2();
 
 	tar_vel = _IQ17abs(tar_vel);
+	g_timer_500u_u32 = 0;
 
 	_sp_l_dist->gone_q17 = _sp_r_dist->gone_q17 = _IQ17(0.0);
 
 	// Unify signs of tar_vel and tar_dist
 	tar_dist = _IQ17abs(_IQ17mpy(tar_th, ROBOT_WIDTH_DIV2 - WHEEL_EFECTIVE_RADIAN_DIV2));
+
+	_CalcDistNVel(_IQ17(0.0), &tar_vel, _IQ17(0.0), tar_dist, &dec_dist, tar_acc);
+
 	if(tar_th > _IQ17(0.0))
 	{		
-		g_s_cmd_vel.linear_q17 = tar_th; //_IQ17(0.0);
+		//g_s_cmd_vel.linear_q17 = _IQ17mpyIQX(_IQ17div(tar_vel, tar_acc << 17), 17, 2000, 0); //_IQ17(0.0);
 		g_s_cmd_vel.angular_q17 = _IQ17div(tar_vel, ROBOT_WIDTH_DIV2);
 
 		_sp_l_dist->target_q17 = -tar_dist;
@@ -589,7 +591,7 @@ void InPlaceTurn(_iq17 tar_th, int32 tar_acc, _iq17 tar_vel)
 	}
 	else if(tar_th < _IQ17(0.0))
 	{		
-		g_s_cmd_vel.linear_q17 = tar_th; //_IQ17(0.0);
+		//g_s_cmd_vel.linear_q17 = _IQ17div(tar_vel, tar_acc << 17); //_IQ17(0.0);
 		g_s_cmd_vel.angular_q17 = _IQ17div(-tar_vel, ROBOT_WIDTH_DIV2);
 
 		_sp_l_dist->target_q17 = tar_dist;
@@ -598,7 +600,7 @@ void InPlaceTurn(_iq17 tar_th, int32 tar_acc, _iq17 tar_vel)
 	else
 		_sp_l_dist->target_q17 = _sp_r_dist->target_q17 = _IQ17(0.0);
 
-	_CalcDistNVel(_IQ17(0.0), &tar_vel, _IQ17(0.0), tar_dist, &dec_dist, tar_acc);
+	g_s_cmd_vel.linear_q17 = _IQ17mpyIQX(_IQ17div(tar_th, g_s_cmd_vel.angular_q17), 17, 2000, 0);
 	
 	_sp_l_dist->decel_point_q17 = _sp_r_dist->decel_point_q17 = dec_dist;
 

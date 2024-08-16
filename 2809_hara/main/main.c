@@ -44,6 +44,9 @@ void Variable_Init(void)
 	g_motor_ki_u32 = 20;
 	g_motor_kd_u32 = 450;
 
+	ReadMotorData();
+	ReadSensorData();
+
 	InitMotor();
 	InitSensor();
 }
