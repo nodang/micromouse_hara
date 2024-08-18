@@ -15,6 +15,9 @@
 #include "Main.h"
 #include "Menu.h"
 
+#define RESOLUTION_TEST_VEL	500
+#define RESOLUTION_TEST_ACC	1000
+
 //===========================================================================//
 //	Static Function of Low Level
 //===========================================================================//
@@ -246,47 +249,97 @@ static void _Accelaration(void)
 	DELAY_US(SW_DELAY);
 }
 
-#define PID_NUM	3
-//#define PID_RESOLUTION	1
-#define PID_MAX 1000
-//#define PID_MIM 0
+#define CAL_MOTOR_PID_PRINT	do{		\
+	TxPrintf("%lu,%lu,%lu,%lf,%lf,%lf", 	\
+		g_motor_kp_u32,						\
+		g_motor_ki_u32,						\
+		g_motor_kd_u32,						\
+		_IQ17toF((g_s_left_motor.s_speed.target_vel_q17 + g_s_left_motor.s_speed.target_vel_q17) >> 1),			\
+		_IQ15toF((g_s_left_motor.s_speed.accel_q15 + g_s_left_motor.s_speed.accel_q15) >> 1),					\
+		_IQ17toF((g_s_left_motor.s_speed.curr_vel_avg_q17 + g_s_left_motor.s_speed.curr_vel_avg_q17) >> 1));	\
+}while(0)
+
 static void _MotorPID(void)
 {
-	Uint32 *p_param[] = { &g_motor_kp_u32, &g_motor_ki_u32, &g_motor_kd_u32 };
-	const char *kVfdChar[] = { "kp", "ki", "kd" };
-	const Uint32 kParamMax[] = { PID_MAX, PID_MAX, PID_MAX };
-	//const Uint32 kParamMin[] = { PID_MIM, PID_MIM, PID_MIM };
-	const Uint32 kParamResolution[] = { 10, 1, 10 };
+	int32 test_vel_i32 = 0, test_acc_i32 = 0;
+	_iq17 target_test_vel_q17 = _IQ17(0.0);
+	_iq15 target_test_acc_q15 = _IQ15(0.0);
 
-	Uint16 sw_cnt = 0;
-	const int16 kNum = PID_NUM - 1;
+	ReadMotorData();
+
+	SCIA_ISR_ON;
 
 	while(SW_U)
 	{
-		VFDPrintf("%c%c%6lu", kVfdChar[sw_cnt][0], kVfdChar[sw_cnt][1], *p_param[sw_cnt]);
-
-		if (!SW_D)	
+		// set test velocity 
+		while(SW_U && SW_D)
 		{
-			DELAY_US(SW_DELAY);
+			if(test_vel_i32 > MAX_VELO)			test_vel_i32 = MAX_VELO;
+			else if(test_vel_i32 < MIN_VELO)	test_vel_i32 = MIN_VELO;
+		
+			VFDPrintf("Vel%5ld", test_vel_i32);
+			CAL_MOTOR_PID_PRINT;
 
-			if(sw_cnt < kNum)	sw_cnt++;
-			else				sw_cnt = 0;
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
 		}
-		else if(!SW_R)
+		while(!SW_D);
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
+		
+		// set test acceleration 
+		while(SW_U && SW_D)
 		{
-			DELAY_US(SW_DELAY_HALF);
+			if(test_acc_i32 > MAX_ACC) 		test_acc_i32 = MAX_ACC;
+			else if(test_acc_i32 < MIN_ACC)	test_acc_i32 = MIN_ACC;
+		
+			VFDPrintf("Acc%5ld", test_acc_i32);
+			CAL_MOTOR_PID_PRINT;
 
-			if(*p_param[sw_cnt] <= (kParamMax[sw_cnt] - kParamResolution[sw_cnt]))
-				*p_param[sw_cnt] += kParamResolution[sw_cnt];
+			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_i32 += RESOLUTION_TEST_ACC; }
+			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_i32 -= RESOLUTION_TEST_ACC; }
 		}
-		else if(!SW_L)
-		{
-			DELAY_US(SW_DELAY_HALF);
+		while(!SW_D);
+		if(!SW_U) continue;		// escape the test function
+		DELAY_US(SW_DELAY);
 
-			if(*p_param[sw_cnt] >= kParamResolution[sw_cnt])
-				*p_param[sw_cnt] -= kParamResolution[sw_cnt];
-		}
+		// motor test logic
+		InitMotor();
+	
+		VFDPrintf("Testing.");
+
+		target_test_vel_q17 = test_vel_i32 << 17;
+		
+		g_s_right_motor.s_speed.target_vel_q17 = target_test_vel_q17;
+		g_s_left_motor.s_speed.target_vel_q17 = target_test_vel_q17;
+
+		target_test_acc_q15 = test_acc_i32 << 15;
+		
+		g_s_right_motor.s_speed.accel_q15 = target_test_acc_q15;
+		g_s_left_motor.s_speed.accel_q15 = target_test_acc_q15;
+		
+		ACTIVATE_MOTOR;			
+
+		// accelerate motor speed
+		while(SW_U)
+			CAL_MOTOR_PID_PRINT;
+
+		g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+		g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
+
+		// decelerate motor speed
+		while(g_s_left_motor.s_speed.curr_vel_avg_q17 > _IQ17(0.0)
+		|| g_s_left_motor.s_speed.curr_vel_avg_q17 > _IQ17(0.0))
+			CAL_MOTOR_PID_PRINT;
+
+		DEACTIVATE_MOTOR;
+
+		VFDPrintf("TestOver");
+
+		while(!SW_U);
 	}
+
+	SCIA_ISR_OFF;
 
 	WriteMotorData();
 
@@ -327,8 +380,6 @@ static void _CalibrateMotorParam(void)
 	DELAY_US(SW_DELAY);
 }
 
-#define RESOLUTION_TEST_VEL	500
-#define RESOLUTION_TEST_ACC	1000
 static void _TestMotor(void)
 {
 	int32 test_vel_i32 = 0, test_acc_i32 = 0;
@@ -590,15 +641,17 @@ static void _TestInPlaceTurn(void)
 
 		while(SW_U)
 		{
-			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, ltd: %8.2lf, rtd: %8.2lf, ref_th: %8.2lf, th: %8.2lf\n", 
+			TxPrintf("tvl: %8.2lf, tvr: %8.2lf, cvl: %8.2lf, cvr: %8.2lf, lrd: %8.2lf, rrd: %8.2lf, ref_th: %8.2lf, th: %8.2lf, ref_w: %8.2lf, w: %8.2lf\n", 
 				_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),
 				_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),
 				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
 				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
-				_IQ17toF(g_s_left_motor.s_dist.target_q17),
-				_IQ17toF(g_s_right_motor.s_dist.target_q17),
+				_IQ17toF(g_s_left_motor.s_dist.remaining_q17),
+				_IQ17toF(g_s_right_motor.s_dist.remaining_q17),
 				_IQ17toF(_IQ17mpy(g_s_ref_pos.th_q17, _IQ17(57.295779513082320876798154814105))),
-				_IQ17toF(_IQ17mpy(g_s_epi.th_q17, _IQ17(57.295779513082320876798154814105)))
+				_IQ17toF(_IQ17mpy(g_s_epi.th_q17, _IQ17(57.295779513082320876798154814105))),
+				_IQ17toF(_IQ17mpy(g_s_ref_pos.w_q17, _IQ17(57.295779513082320876798154814105))),
+				_IQ17toF(_IQ17mpy(g_s_epi.w_q17, _IQ17(57.295779513082320876798154814105)))
 			);
 		}
 
@@ -616,7 +669,7 @@ static void _TestInPlaceTurn(void)
 static void _TestRunning(void)
 {
 	static void (*menu_func_[])() = {
-		_TestMove2Stop, _TestInPlaceTurn
+		_TestMove2Stop, _TestInPlaceTurn //, _TestMoveToMove, _TestStraight, _TestTurn
 	};
 
 	static const char *kMenuChar_[] = {
@@ -654,8 +707,11 @@ static void _TestAlgorithm(void)
 
 static void _SearchRun(void)
 {	
-	init_map();
-	search_race();
+	VFDPrintf("made yet");
+	DELAY_US(250000);
+
+	//init_map();
+	//SearchRace();
 }
 
 static void _FastRun(void)
@@ -664,19 +720,28 @@ static void _FastRun(void)
 	DELAY_US(250000);
 }
 
+static void _IntegrateRun(void)
+{
+	VFDPrintf("made yet");
+	DELAY_US(250000);
+	
+	//_SearchRun();
+	//_FastRun();
+}
+
 //===========================================================================//
 //	Static Function of High Level : Group of Consistant Functions
 //===========================================================================//
 
-#define RUNFUNC_MENU_NUM	2
+#define RUNFUNC_MENU_NUM	3
 static void _RunFunc(void)
 {
 	static void (*menu_func_[])() = {
-		_SearchRun, _FastRun
+		_SearchRun, _FastRun, _IntegrateRun
 	};
 
 	static const char *kMenuChar_[] = {
-		"  SEARCH", "    FAST"
+		"R SEARCH", "R   FAST", "R   AUTO"
 	};
 
 	int16 menu_cnt_i16 = 0;

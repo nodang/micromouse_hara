@@ -100,9 +100,10 @@
 
 typedef volatile struct
 {
-	Uint16	sensor_ir_b	:1,
-			motor_pwm_b	:1,
-			adj_pos_b	:1;
+	Uint16	sensor_ir_b:1,			// default: off
+			motor_pwm_b:1,			// default: off
+			adj_pos_b:1,			// default: off
+			motor_dec_sync_b:1;		// default: on
 }Flags;
 
 __VARIABLE_EXT__ Flags g_s_flags;
@@ -192,9 +193,11 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 						GpioDataRegs.GPADAT.bit.GPIO22 = OFF;	\
 					}while(0)
 
-#define ACTIVATE_MOTOR		do {								\
-								g_s_flags.motor_pwm_b = ON;		\
-								STANDBY_ON;						\
+#define ACTIVATE_MOTOR		do {									\
+								g_s_flags.motor_pwm_b = ON;			\
+								STANDBY_ON;							\
+								RightQepRegs.QEPCTL.bit.SWI = 1;	\
+								LeftQepRegs.QEPCTL.bit.SWI = 1;		\
 								StartCpuTimer2();				\
 							}while(0)
 
@@ -204,11 +207,13 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 								g_s_flags.motor_pwm_b = OFF;	\
 							}while(0)
 
-#define ACTIVATE_MOTOR_ADJ	do {								\
-								g_s_flags.motor_pwm_b = ON;		\
-								STANDBY_ON;						\
-								g_s_flags.adj_pos_b = ON;		\
-								StartCpuTimer2();				\
+#define ACTIVATE_MOTOR_ADJ	do {									\
+								g_s_flags.motor_pwm_b = ON;			\
+								STANDBY_ON;							\
+								g_s_flags.adj_pos_b = ON;			\
+								RightQepRegs.QEPCTL.bit.SWI = 1;	\
+								LeftQepRegs.QEPCTL.bit.SWI = 1;		\
+								StartCpuTimer2();					\
 							}while(0)
 
 #define DEACTIVATE_MOTOR_ADJ do {								\
@@ -218,10 +223,12 @@ __VARIABLE_EXT__ volatile Uint16	g_sensor_num_u16,
 								g_s_flags.motor_pwm_b = OFF;	\
 							}while(0)
 
-#define ACTIVATE_SYSTEM		do {								\
-								g_s_flags.sensor_ir_b = ON;		\
-								g_s_flags.motor_pwm_b = ON;		\
-								STANDBY_ON;						\
+#define ACTIVATE_SYSTEM		do {									\
+								g_s_flags.sensor_ir_b = ON;			\
+								g_s_flags.motor_pwm_b = ON;			\
+								STANDBY_ON;							\
+								RightQepRegs.QEPCTL.bit.SWI = 1;	\
+								LeftQepRegs.QEPCTL.bit.SWI = 1;		\
 								StartCpuTimer2();				\
 							}while(0)
 
@@ -265,8 +272,9 @@ typedef volatile struct
 
 typedef volatile struct
 {
-	_iq17	adj_ratio_q17;
-	_iq17	adj_additional_q17;
+	_iq17	adj_ratio_q17,
+			adj_additional_q17,
+			adj_add_v_q17;
 }AdjustPositionVariable;
 
 typedef volatile struct
@@ -296,7 +304,7 @@ typedef volatile struct
 __VARIABLE_EXT__ MotorVariable	g_s_left_motor,
 								g_s_right_motor;
 
-__VARIABLE_EXT__ CommandVelocityVariable	g_s_cmd_vel;
+//__VARIABLE_EXT__ CommandVelocityVariable	g_s_cmd_vel;
 
 
 // Do not reset
@@ -319,6 +327,8 @@ typedef volatile struct
 			th_q17,
 			v_q17,
 			w_q17;
+
+	_iq17	target_th_q17;
 }PositionVariable;
 
 __VARIABLE_EXT__ PositionVariable	g_s_epi, g_s_ref_pos;

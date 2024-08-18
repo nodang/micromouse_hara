@@ -116,7 +116,33 @@ interrupt void scia_ISR()
 
 interrupt void scia_ISR()
 {
+	unsigned char scia_buf;
+
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP9;
+
+	scia_buf = SCIx_RxChar();
+
+	switch(scia_buf)
+	{
+	case 'q':
+		g_motor_kp_u32++;
+		break;
+	case 'a':
+		g_motor_kp_u32--;
+		break;
+	case 'w':
+		g_motor_ki_u32++;
+		break;
+	case 's':
+		g_motor_ki_u32--;
+		break;
+	case 'e':
+		g_motor_kd_u32++;
+		break;
+	case 'd':
+		g_motor_kd_u32--;
+		break;
+	}
 
 	g_sci_on_u16 = ON;
 }
