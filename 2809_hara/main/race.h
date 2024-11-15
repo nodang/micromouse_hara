@@ -1,19 +1,19 @@
 //###########################################################################
 //
-// FILE		: search.c
+// FILE		: Race.h
 //
-// TITLE		: _varhae_ Tracer search source file.
+// TITLE	: race h file.
 //
-// Author	: leejaeseong
+// Author	: Ho Jin Roh
 //
 // Company	: Hertz
 //
 //###########################################################################
-// $Release Date: 2009.11.15 $
+// $Release Date: 2024.05.26 $
 //###########################################################################
 
-#ifndef __SEARCH_H__
-#define __SEARCH_H__
+#ifndef __RACE_H__
+#define __RACE_H__
 
 inline void _InlineSaveWallData(int16 robot_pos)
 {
@@ -27,7 +27,7 @@ inline void _InlineSaveWallData(int16 robot_pos)
 		/* 센서 데이터 기반 벽 정보 */
 		wall_state = 0x0;
 		
-		/* 센서 데이터에 따른 벽 저장*/		
+		/* 센서 데이터에 따른 벽 저장*/
 		map[robot_pos].all = wall_state; //origin_map[robot_pos].all;
 
 		/* 벽너머 노드의 벽 정보도 업데이트 */
