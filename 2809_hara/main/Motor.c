@@ -349,6 +349,103 @@ interrupt void IsrTimer2ForMotor(void)
 	StartCpuTimer0();
 }
 
+#define STD_TEMP_22	22.0		// Standard Ambient Temperature, 22 Celsisus
+#define SUP_VOLT 	7.4			// Nominal Voltage [V]
+#define R_STD_TEMP	4.31		// Terminal Resistance [Ohm], Ambient Temp: 22 Celsius
+#define L 			0.0000656	// Rotor Inductance [H]
+#define RECIP_L		15243.90243	// Reciprocal of Rotor Inductance [1/H]
+#define k_M			0.00396		// Torque Constanct [Nm/A]
+#define k_E			k_M			// Back EMF Constant [V/(rad/s)], This is same as k_M.
+#define J			0.000000058	// Rotor Inertia [kg*m^2]
+#define M_R			0.00018		// Friction Torque [Nm]
+#define T_amb		STD_TEMP_22	// Ambient Temperature [Celsius]
+#define alpha_cu	0.00393		// Temperature Coefficient of Resistance [Celsius]
+#define R_th1		13.0		// Winding to Housing Termal Resistance [Ohm]
+#define R_th2		2.6			// Housing to Ambient (Metal) [Ohm]
+#define tau_w		6.4			// Winding Thermal Time Constant [s]
+#define tau_th		20.0		// Housing Thermal time constan [s]
+#define C_th1		0.492307692	// Winding Heat Capacity [J/K], tau_w / R_th1
+#define C_th2		7.692307692	// Housing Heat Capacity [J/K], tau_th / R_th2
+
+#define MAX_TEMP	125.0
+#define MIN_TEMP	-30.0
+
+typedef volatile struct {
+	_iq27	winding_resistance_q27,
+			back_emf_volt_q27,
+			control_volt_q27,
+			steady_state_current_q27,
+			current_q27;
+
+	_iq27	motor_torque_q27,
+			driving_torque_q27,
+			friction_torque_q27,
+			net_torque_q27;
+
+	_iq27	step_omega_q27;
+	_iq17	omega_q17;
+
+	_iq17	power_loss_q17,
+			heat_flow_winding_to_housing_q17,
+			step_winding_temp_q17,
+			winding_temp_q17,
+			
+			heat_flow_housing_to_ambient_q17,
+			step_housing_temp_q17,
+			housing_temp_q17;
+} DCMotorModelVariable;
+
+DCMotorModelVariable	g_s_left_dc_motor_model;
+DCMotorModelVariable	g_s_right_dc_motor_model;
+
+static void _CalcDCMotorStep(DCMotorModelVariable *sp_motor_model, MotorVariable *sp_motor)
+{
+	_iq30 winding_temp_const, pwm_duty_ratio, omega_sign;
+	_iq27 avg_current;
+	
+	// Calculate Elctrical Parameters
+	winding_temp_const = _IQ30(1.0) + _IQ30mpyIQX(_IQ30(alpha_cu), 30, sp_motor_model->winding_temp_q17 - _IQ17(STD_TEMP_22), 27);
+	sp_motor_model->winding_resistance_q27 = _IQ27mpyIQX(_IQ28(R_STD_TEMP), 28, winding_temp_const, 30);
+
+	// Calculate Advanced Current with Analytic Solution
+	sp_motor_model->back_emf_volt_q27 = _IQ27mpyIQX(_IQ30(k_E), 30, sp_motor_model->omega_q17, 17);
+	
+	// Calculate Average Current for 1 cycle
+	pwm_duty_ratio = _IQ30mpyIQX(sp_motor->pid_output_q17, 17, _IQ30(0.000111111), 30);
+	sp_motor_model->control_volt_q27 = _IQ27mpyIQX(_IQ27(SUP_VOLT), 27, pwm_duty_ratio, 30);
+	sp_motor_model->steady_state_current_q27 = _IQ27div(sp_motor_model->control_volt_q27 - sp_motor_model->back_emf_volt_q27, sp_motor_model->winding_resistance_q27);
+
+	avg_current = (sp_motor_model->current_q27 + sp_motor_model->steady_state_current_q27) >> 1;
+	sp_motor_model->current_q27 = sp_motor_model->steady_state_current_q27;
+
+	// Update Mechanical State
+	sp_motor_model->motor_torque_q27 = _IQ27mpy(_IQ27(k_M), avg_current);
+	sp_motor_model->driving_torque_q27 = sp_motor_model->motor_torque_q27; // - load torque;
+
+	if(sp_motor_model->omege_q17 > _IQ17(0.0))			omega_sign = _IQ30(1.0);
+	else if(sp_motor_model->omege_q17 < _IQ17(0.0))		omega_sign = _IQ30(-1.0);
+	else												omega_sign = _IQ30(0.0);
+
+	if(sp_motor_model->control_volt_q27 == _IQ27(0.0)) // Motor is stopped
+	{
+		if(_IQ27abs(sp_motor_model->driving_torque_q27) > _IQ27(M_R))
+			sp_motor_model->friction_torque_q27 = _IQ27mpyIQX(_IQ30(M_R), 30, omega_sign, 30);
+		else
+			sp_motor_model->friction_torque_q27 = sp_motor_model->driving_torque_q27;
+	}
+	else	// Motor is working
+		sp_motor_model->friction_torque_q27 = _IQ27mpyIQX(_IQ30(M_R), 30, omega_sign, 30);
+
+	sp_motor_model->net_torque_q27 = sp_motor_model->driving_torque_q27 - sp_motor_model->friction_torque_q27;
+
+	sp_motor_model->step_omega_q27 = _IQ27div(sp_motor_model->net_torque_q27, _IQ27(J));
+	sp_motor_model->omega_q17 = _IQ17mpyIQX(sp_motor_model->step_omega_q27, 27, TIME_TICK, 30);
+
+	// Update Thermal Equilibrium State
+
+	
+}
+
 #define DIV_COEF		1000
 #define DIV_COEF_REV	_IQ30(0.001)
 static _iq17 _CalcDist(_iq17 tar_vel, _iq17 curr_vel, int32 tar_acc)
