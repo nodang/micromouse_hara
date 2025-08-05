@@ -414,6 +414,7 @@ static void _CalibrateRunningParam(void)
 		g_s_right_motor.s_qep.sample_i16);		\
 }while(0)
 
+#if 0
 #define PRINT_MOTOR_MODEL_TEST_RESULT(tv) do{		\
 	TxPrintf("tv: %5ld, nv_l: %8.2lf, nv_r: %8.2lf, cv_l: %8.2lf, cv_r: %8.2lf, pid_L: %8.2lf, pid_r: %8.2lf, dt_l: %8.2lf, dt_r: %8.2lf, ft_l: %8.2lf, ft_r: %8.2lf\n",	\
 		tv,																																									\
@@ -428,6 +429,21 @@ static void _CalibrateRunningParam(void)
 		_IQ25toF(g_s_left_dc_motor_model.friction_torque_q25),		\
 		_IQ25toF(g_s_right_dc_motor_model.friction_torque_q25));	\
 }while(0)
+#else
+#define PRINT_MOTOR_MODEL_TEST_RESULT(tv) do{		\
+	TxPrintf("tv: %5ld, nv: %8.2lf, cv: %8.2lf, err: %8.2lf, err-1: %8.2lf, tor: %8.2lf, i: %8.2lf, u_v: %8.2lf, pid: %8.2lf\n",	\
+		tv,																																									\
+		_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),				\
+		_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),				\
+		_IQ17toF(g_s_right_motor.err_vel_q17[0]),			\
+		_IQ17toF(g_s_right_motor.err_vel_q17[1]),			\
+		_IQ17toF(g_s_right_motor.err_vel_sum_q17),			\
+		_IQ17toF(g_s_right_motor.err_vel_q17[2]),			\
+		_IQ17toF(g_s_right_motor.err_vel_q17[3]),					\
+		_IQ17toF(g_s_right_motor.pid_output_q17));		\
+}while(0)
+
+#endif
 
 static void _TestMotor(int16 func_switch)
 {

@@ -109,7 +109,9 @@ void InitMotor(void)
 #pragma CODE_SECTION(InPlaceTurn, "ramfuncs2");
 interrupt void IsrTimer2ForMotor(void)
 {
-	_iq17 right_output, left_output;
+	volatile _iq17 right_output, left_output;
+	volatile _iq17 phi = _IQ17(10.0), eta = _IQ11(50000.0);
+	volatile _iq17 omega_dot, omega_dot_des, torque_des, i_des, u_control;
 
 	g_timer_500u_u32++;
 #if 0
@@ -273,7 +275,8 @@ interrupt void IsrTimer2ForMotor(void)
 		//estimate_position_used_sensor();
 		adjust_position();
 	}
-
+	
+#if 0
 	// ธ๐ลอ PID
 	// motor PID
 	g_s_right_motor.err_vel_sum_q17 -= g_s_right_motor.err_vel_q17[3];
@@ -281,7 +284,7 @@ interrupt void IsrTimer2ForMotor(void)
 	g_s_right_motor.err_vel_q17[2] = g_s_right_motor.err_vel_q17[1];
 	g_s_right_motor.err_vel_q17[1] = g_s_right_motor.err_vel_q17[0];
 	//g_s_right_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_r_speed->next_vel_q17 + _sp_r_msc->adj_add_v_q17, 17, _sp_r_msc->adj_ratio_q17, 17) - _sp_r_speed->curr_vel_avg_q17;
-	g_s_right_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_r_speed->next_vel_q17, 17, _sp_r_msc->adj_ratio_q17, 17) - _sp_r_speed->curr_vel_avg_q17;
+	g_s_right_motor.err_vel_q17[0] = _IQ17mpy(_IQ17mpyIQX(_sp_r_speed->next_vel_q17, 17, _sp_r_msc->adj_ratio_q17, 17) - _sp_r_speed->curr_vel_avg_q17, _IQ17(0.082987551));
 	g_s_right_motor.err_vel_sum_q17 += g_s_right_motor.err_vel_q17[0];
 
 	g_s_right_motor.proportional_term_q17 = _IQ17mpy(g_s_right_motor.kp_q17, g_s_right_motor.err_vel_q17[0]);
@@ -299,7 +302,7 @@ interrupt void IsrTimer2ForMotor(void)
 	g_s_left_motor.err_vel_q17[2] = g_s_left_motor.err_vel_q17[1];
 	g_s_left_motor.err_vel_q17[1] = g_s_left_motor.err_vel_q17[0];
 	//g_s_left_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_l_speed->next_vel_q17 + _sp_l_msc->adj_add_v_q17, 17, _sp_l_msc->adj_ratio_q17, 17) - _sp_l_speed->curr_vel_avg_q17;
-	g_s_left_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_l_speed->next_vel_q17, 17, _sp_l_msc->adj_ratio_q17, 17) - _sp_l_speed->curr_vel_avg_q17;
+	g_s_left_motor.err_vel_q17[0] = _IQ17mpy(_IQ17mpyIQX(_sp_l_speed->next_vel_q17, 17, _sp_l_msc->adj_ratio_q17, 17) - _sp_l_speed->curr_vel_avg_q17, _IQ17(0.082987551));
 	g_s_left_motor.err_vel_sum_q17 += g_s_left_motor.err_vel_q17[0];
 
 	g_s_left_motor.proportional_term_q17 = _IQ17mpy(g_s_left_motor.kp_q17,  g_s_left_motor.err_vel_q17[0]);
@@ -310,7 +313,39 @@ interrupt void IsrTimer2ForMotor(void)
 	else if( g_s_left_motor.integral_term_q17 < MIN_I_TERM)		g_s_left_motor.integral_term_q17 = MIN_I_TERM;
 
 	g_s_left_motor.pid_output_q17 += g_s_left_motor.proportional_term_q17 + g_s_left_motor.derivative_term_q17 + g_s_left_motor.integral_term_q17;
+#else
+	// SMC
+	g_s_right_motor.err_vel_q17[1] = g_s_right_motor.err_vel_q17[0];
+	g_s_right_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_r_speed->next_vel_q17 - _sp_r_speed->curr_vel_avg_q17, 17, _IQ30(0.082987551), 30);
 
+	omega_dot = _IQ17mpy((g_s_right_motor.err_vel_q17[0] - g_s_right_motor.err_vel_q17[1]), _IQ17(2000.0)) >> 6;
+
+	if(_IQ17abs(g_s_right_motor.err_vel_q17[0]) > phi)
+	{
+		if(g_s_right_motor.err_vel_q17[0] > _IQ17(0.0))			omega_dot_des = omega_dot + eta;
+		else if(g_s_right_motor.err_vel_q17[0] < _IQ17(0.0))	omega_dot_des = omega_dot - eta;
+		else													omega_dot_des = omega_dot;
+	}
+	else	omega_dot_des = omega_dot + _IQ11mpyIQX(eta, 15, _IQ17div(g_s_right_motor.err_vel_q17[0], phi), 17);
+
+	if(_sp_r_speed->curr_vel_avg_q17 > _IQ17(0.0))		torque_des = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot_des, 11) + _IQ25(M_R);
+	else if(_sp_r_speed->curr_vel_avg_q17 < _IQ17(0.0))	torque_des = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot_des, 11) - _IQ25(M_R);
+	else	torque_des = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot_des, 11);
+
+	g_s_right_motor.err_vel_sum_q17 = torque_des >> 8;
+
+	i_des = _IQ25div(torque_des, _IQ25(k_M));
+	g_s_right_motor.err_vel_q17[2] = i_des >> 8;
+
+	u_control = _IQ25mpy(i_des, _IQ25(R_STD_TEMP)) + _IQ25mpyIQX(_IQ25(k_E), 25, _IQ17mpyIQX(_sp_r_speed->curr_vel_avg_q17, 17, _IQ30(0.082987551), 30), 17);
+	g_s_right_motor.err_vel_q17[3] = u_control >> 8;
+	if(u_control > _IQ25(SUP_VOLT))			u_control = _IQ25(SUP_VOLT);
+	else if(u_control < _IQ25(-SUP_VOLT))	u_control = _IQ25(-SUP_VOLT);
+
+	g_s_right_motor.pid_output_q17 = _IQ17mpyIQX(_IQ25div(u_control, _IQ25(SUP_VOLT)), 25, MAX_PID_OUT, 17);
+	g_s_left_motor.pid_output_q17 = _IQ17(0.0);
+		
+#endif
 	// 
 	if(g_s_flags.motor_pwm_b)
 	{
