@@ -26,7 +26,7 @@
 #define MAX_PID_OUT		_IQ17(9000)//9000
 #define MIN_PID_OUT		-MAX_PID_OUT //_IQ17(-9000)//9000
 
-#define PWM_CONVERT		_IQ30(0.22222222)// pwm 2kHz == pid_output_maxmin * pwm_convert
+#define PWM_CONVERT		_IQ30(0.222222222)// pwm 2kHz == pid_output_maxmin * pwm_convert
 
 #define WHEEL_DIAMETER	24.10
 #define WHEEL_RADIUS	12.05	//_IQ17(37.699111843)
@@ -71,26 +71,37 @@ static void _InitMotorSturcture(MotorVariable *sp_motor)
 {
 	memset((void *)sp_motor, 0x00, sizeof(MotorVariable));
 
-	sp_motor->kp_q17 = _IQ17div(g_motor_kp_u32 << 17, _IQ17(100.0));		// 4.50
-	sp_motor->ki_q17 = _IQ17div(_IQ17div(g_motor_ki_u32 << 17, _IQ17(100.0)), _IQ17(1000.0));	// 0.00020
-	sp_motor->kd_q17 = _IQ17div(g_motor_kd_u32 << 17, _IQ17(100.0));		// 4.50
+	sp_motor->kp_q17 = _IQ17mpyIQX(g_motor_kp_u32, 0, _IQ30(0.01), 30);		// 4.50
+	sp_motor->ki_q17 = _IQ17mpyIQX(g_motor_ki_u32, 0, _IQ30(0.00001), 30);	// 0.00020
+	sp_motor->kd_q17 = _IQ17mpyIQX(g_motor_kd_u32, 0, _IQ30(0.01), 30);		// 4.50
 
 	sp_motor->s_speed.accel_q15 = _IQ15(1000.0);
 	sp_motor->s_speed.target_vel_q17 = _IQ17(0.0);
 	sp_motor->s_adj.adj_ratio_q17 = _IQ17(1.0);
 }
 
+static void _InitDCMotorModelSturcture(DCMotorModelVariable *sp_motor_model)
+{
+	memset((void *)sp_motor_model, 0x00, sizeof(DCMotorModelVariable));
+
+	sp_motor_model->ambient_temp_q20 = _IQ20(STD_TEMP_22);
+	sp_motor_model->winding_temp_q20 = sp_motor_model->housing_temp_q20 = sp_motor_model->ambient_temp_q20;
+}
+
 void InitMotor(void)
 {
 	_InitMotorSturcture(&g_s_right_motor);
 	_InitMotorSturcture(&g_s_left_motor);
-
+	
+	_InitDCMotorModelSturcture(&g_s_right_dc_motor_model);
+	_InitDCMotorModelSturcture(&g_s_left_dc_motor_model);
 	//memset((void *)&g_s_cmd_vel, 0x00, sizeof(CommandVelocityVariable));
 
 	init_position();
 }
 
 #pragma CODE_SECTION(IsrTimer2ForMotor, "ramfuncs2");
+#pragma CODE_SECTION(CalcDCMotorStep, "ramfuncs2");
 #pragma CODE_SECTION(_CalcDist, "ramfuncs2");
 #pragma CODE_SECTION(_CalcDistNVel, "ramfuncs2");
 #pragma CODE_SECTION(MoveToStop, "ramfuncs2");
@@ -98,6 +109,8 @@ void InitMotor(void)
 #pragma CODE_SECTION(InPlaceTurn, "ramfuncs2");
 interrupt void IsrTimer2ForMotor(void)
 {
+	_iq17 right_output, left_output;
+
 	g_timer_500u_u32++;
 #if 0
 	g_u16motortic++;
@@ -151,7 +164,7 @@ interrupt void IsrTimer2ForMotor(void)
 
 	// 펄스당 속도와 QEP를 곱해 현재의 속도를 구한다.
 	// calculate current velocity. multiply the sample by velocity per a pulse
-#if 1
+#if 0
 	// To use as average of velocity
 	_sp_r_speed->curr_vel_q17[3] = _sp_r_speed->curr_vel_q17[2];
 	_sp_r_speed->curr_vel_q17[2] = _sp_r_speed->curr_vel_q17[1];
@@ -169,6 +182,14 @@ interrupt void IsrTimer2ForMotor(void)
 	_sp_r_speed->curr_vel_avg_q17 = _IQ17mpyIQX(_sp_r_qep->sample_q21, 21, PULSE_TO_VEL, 26);
 	_sp_l_speed->curr_vel_avg_q17 = _IQ17mpyIQX(_sp_l_qep->sample_q21, 21, PULSE_TO_VEL, 26);
 #endif
+
+	// Calculate the reference values of DC Motor Model like RBM or Current.
+	// Right Motor has the opposite direction from Left Motor.
+	// Left Motor has the forward direction.
+	right_output = -_IQ17mpyIQX(g_s_right_motor.pid_output_q17, 17, PWM_CONVERT, 30);
+	left_output = _IQ17mpyIQX(g_s_left_motor.pid_output_q17, 17, PWM_CONVERT, 30);
+	CalcDCMotorStep(&g_s_right_dc_motor_model, right_output);
+	CalcDCMotorStep(&g_s_left_dc_motor_model, left_output);
 
 	// 남은 거리 확인 후 목표 감속 속도 설정
 	// if remainging distance over the stop point set then set target velocity to deceleration target velocity
@@ -349,101 +370,81 @@ interrupt void IsrTimer2ForMotor(void)
 	StartCpuTimer0();
 }
 
-#define STD_TEMP_22	22.0		// Standard Ambient Temperature, 22 Celsisus
-#define SUP_VOLT 	7.4			// Nominal Voltage [V]
-#define R_STD_TEMP	4.31		// Terminal Resistance [Ohm], Ambient Temp: 22 Celsius
-#define L 			0.0000656	// Rotor Inductance [H]
-#define RECIP_L		15243.90243	// Reciprocal of Rotor Inductance [1/H]
-#define k_M			0.00396		// Torque Constanct [Nm/A]
-#define k_E			k_M			// Back EMF Constant [V/(rad/s)], This is same as k_M.
-#define J			0.000000058	// Rotor Inertia [kg*m^2]
-#define M_R			0.00018		// Friction Torque [Nm]
-#define T_amb		STD_TEMP_22	// Ambient Temperature [Celsius]
-#define alpha_cu	0.00393		// Temperature Coefficient of Resistance [Celsius]
-#define R_th1		13.0		// Winding to Housing Termal Resistance [Ohm]
-#define R_th2		2.6			// Housing to Ambient (Metal) [Ohm]
-#define tau_w		6.4			// Winding Thermal Time Constant [s]
-#define tau_th		20.0		// Housing Thermal time constan [s]
-#define C_th1		0.492307692	// Winding Heat Capacity [J/K], tau_w / R_th1
-#define C_th2		7.692307692	// Housing Heat Capacity [J/K], tau_th / R_th2
-
-#define MAX_TEMP	125.0
-#define MIN_TEMP	-30.0
-
-typedef volatile struct {
-	_iq27	winding_resistance_q27,
-			back_emf_volt_q27,
-			control_volt_q27,
-			steady_state_current_q27,
-			current_q27;
-
-	_iq27	motor_torque_q27,
-			driving_torque_q27,
-			friction_torque_q27,
-			net_torque_q27;
-
-	_iq27	step_omega_q27;
-	_iq17	omega_q17;
-
-	_iq17	power_loss_q17,
-			heat_flow_winding_to_housing_q17,
-			step_winding_temp_q17,
-			winding_temp_q17,
-			
-			heat_flow_housing_to_ambient_q17,
-			step_housing_temp_q17,
-			housing_temp_q17;
-} DCMotorModelVariable;
-
-DCMotorModelVariable	g_s_left_dc_motor_model;
-DCMotorModelVariable	g_s_right_dc_motor_model;
-
-static void _CalcDCMotorStep(DCMotorModelVariable *sp_motor_model, MotorVariable *sp_motor)
+void CalcDCMotorStep(DCMotorModelVariable *sp_motor_model, _iq17 pid_output)
 {
-	_iq30 winding_temp_const, pwm_duty_ratio, omega_sign;
+	_iq30 winding_temp_const, pwm_duty_ratio;
 	_iq27 avg_current;
+	_iq19 omega_dt;
+
+	_iq25 squared_current;
+	_iq20 winding_temp_dt, housing_temp_dt;
+
+	int16 omega_sign = 0, d_torque_sign = 0;
 	
 	// Calculate Elctrical Parameters
-	winding_temp_const = _IQ30(1.0) + _IQ30mpyIQX(_IQ30(alpha_cu), 30, sp_motor_model->winding_temp_q17 - _IQ17(STD_TEMP_22), 27);
-	sp_motor_model->winding_resistance_q27 = _IQ27mpyIQX(_IQ28(R_STD_TEMP), 28, winding_temp_const, 30);
+	winding_temp_const = _IQ30(1.0) + _IQ30mpyIQX(_IQ30(alpha_cu), 30, sp_motor_model->winding_temp_q20 - _IQ20(STD_TEMP_22), 20);	/* 0.5 ~ 1.5 */
+	sp_motor_model->winding_resistance_q27 = _IQ27mpyIQX(_IQ20(R_STD_TEMP), 20, winding_temp_const, 30);	/* 2.25 ~ 6.75 */
 
 	// Calculate Advanced Current with Analytic Solution
-	sp_motor_model->back_emf_volt_q27 = _IQ27mpyIQX(_IQ30(k_E), 30, sp_motor_model->omega_q17, 17);
+	sp_motor_model->back_emf_volt_q27 = _IQ27mpyIQX(_IQ30(k_E), 30, sp_motor_model->omega_q19, 19);	/* -6.336 ~ 6.336 */
 	
 	// Calculate Average Current for 1 cycle
-	pwm_duty_ratio = _IQ30mpyIQX(sp_motor->pid_output_q17, 17, _IQ30(0.000111111), 30);
-	sp_motor_model->control_volt_q27 = _IQ27mpyIQX(_IQ27(SUP_VOLT), 27, pwm_duty_ratio, 30);
-	sp_motor_model->steady_state_current_q27 = _IQ27div(sp_motor_model->control_volt_q27 - sp_motor_model->back_emf_volt_q27, sp_motor_model->winding_resistance_q27);
-
-	avg_current = (sp_motor_model->current_q27 + sp_motor_model->steady_state_current_q27) >> 1;
-	sp_motor_model->current_q27 = sp_motor_model->steady_state_current_q27;
+	pwm_duty_ratio = _IQ30mpyIQX(pid_output, 17, _IQ20(2000.0), 20);	/* -1 ~ 1 */
+	sp_motor_model->control_volt_q27 = _IQ27mpyIQX(_IQ27(SUP_VOLT), 27, pwm_duty_ratio, 30);	/* -7.4 ~ 7.4 */
+	sp_motor_model->steady_state_current_q27 = _IQ27div(sp_motor_model->control_volt_q27 - sp_motor_model->back_emf_volt_q27, sp_motor_model->winding_resistance_q27);	/* -7.5 ~ 7.5 */
+	avg_current = (sp_motor_model->current_q27 >> 1) + (sp_motor_model->steady_state_current_q27 >> 1);	/* -15.0 ~ 15.0 */
 
 	// Update Mechanical State
-	sp_motor_model->motor_torque_q27 = _IQ27mpy(_IQ27(k_M), avg_current);
-	sp_motor_model->driving_torque_q27 = sp_motor_model->motor_torque_q27; // - load torque;
+	sp_motor_model->motor_torque_q25 = _IQ25mpyIQX(_IQ27(k_M), 27, avg_current, 27);	/* -30 ~ 30 */
+	sp_motor_model->driving_torque_q25 = sp_motor_model->motor_torque_q25; // - load torque;
 
-	if(sp_motor_model->omege_q17 > _IQ17(0.0))			omega_sign = _IQ30(1.0);
-	else if(sp_motor_model->omege_q17 < _IQ17(0.0))		omega_sign = _IQ30(-1.0);
-	else												omega_sign = _IQ30(0.0);
+	// Calculate Friction Torque
+	if(sp_motor_model->omega_q19 > _IQ19(0.0))			omega_sign = 1;
+	else if(sp_motor_model->omega_q19 < _IQ19(0.0))		omega_sign = -1;
 
-	if(sp_motor_model->control_volt_q27 == _IQ27(0.0)) // Motor is stopped
+	if(sp_motor_model->driving_torque_q25 > _IQ25(0.0))			d_torque_sign = 1;
+	else if(sp_motor_model->driving_torque_q25 < _IQ25(0.0))	d_torque_sign = -1;
+
+	if(sp_motor_model->control_volt_q27 == _IQ27(0.0)) /* Motor is stopped */
 	{
-		if(_IQ27abs(sp_motor_model->driving_torque_q27) > _IQ27(M_R))
-			sp_motor_model->friction_torque_q27 = _IQ27mpyIQX(_IQ30(M_R), 30, omega_sign, 30);
+		if(_IQ26abs(sp_motor_model->driving_torque_q25) > _IQ25(M_R))
+			sp_motor_model->friction_torque_q25 = _IQ25mpyIQX(_IQ25(M_R), 30, d_torque_sign, 0);
 		else
-			sp_motor_model->friction_torque_q27 = sp_motor_model->driving_torque_q27;
+			sp_motor_model->friction_torque_q25 = sp_motor_model->driving_torque_q25;
 	}
-	else	// Motor is working
-		sp_motor_model->friction_torque_q27 = _IQ27mpyIQX(_IQ30(M_R), 30, omega_sign, 30);
+	else	/* Motor is working */
+		sp_motor_model->friction_torque_q25 = _IQ25mpyIQX(_IQ25(M_R), 30, omega_sign, 0);
 
-	sp_motor_model->net_torque_q27 = sp_motor_model->driving_torque_q27 - sp_motor_model->friction_torque_q27;
+	// Calculate Momentum Torque
+	sp_motor_model->net_torque_q25 = sp_motor_model->driving_torque_q25 - sp_motor_model->friction_torque_q25;	/* -60 ~ 60 */
 
-	sp_motor_model->step_omega_q27 = _IQ27div(sp_motor_model->net_torque_q27, _IQ27(J));
-	sp_motor_model->omega_q17 = _IQ17mpyIQX(sp_motor_model->step_omega_q27, 27, TIME_TICK, 30);
+	// Calculate Motor's Angle Speed [rad/s]
+	omega_dt = _IQ19mpyIQX(sp_motor_model->net_torque_q25, 25, _IQ25(TIME_TICK_DIV_J_DIV1000), 25);	/* -600 ~ 600 */
+	sp_motor_model->omega_q19 += omega_dt;	/* -2000 ~ 2000 */
+
+	if(sp_motor_model->omega_q19 > _IQ19(MAX_MOTOR_RAD_P_S))		sp_motor_model->omega_q19 = _IQ19(MAX_MOTOR_RAD_P_S);
+	else if(sp_motor_model->omega_q19 < _IQ19(MIN_MOTOR_RAD_P_S))	sp_motor_model->omega_q19 = _IQ19(MIN_MOTOR_RAD_P_S);
 
 	// Update Thermal Equilibrium State
+	squared_current = _IQ25mpyIQX(sp_motor_model->current_q27, 27, sp_motor_model->current_q27, 27);	/* -56.25 ~ 56.25 */
+	sp_motor_model->power_loss_q20 = _IQ20mpyIQX(squared_current, 25, sp_motor_model->winding_resistance_q27, 27);	/* -379.6875 ~ 379.6875 */
 
-	
+	sp_motor_model->heat_flow_winding_to_housing_q20 = _IQ20mpyIQX(sp_motor_model->winding_temp_q20 - sp_motor_model->housing_temp_q20, 20, _IQ30(RECIP_R_th1), 30);	/* -12.4 ~ 12.4 */
+	winding_temp_dt = _IQ20mpyIQX(sp_motor_model->power_loss_q20 - sp_motor_model->heat_flow_winding_to_housing_q20, 20, _IQ30(RECIP_C_th1), 30);	/* -840 ~ 840 */
+	sp_motor_model->winding_temp_q20 += winding_temp_dt;
+
+	if(sp_motor_model->winding_temp_q20 > _IQ20(MAX_MOTOR_TEMP))		sp_motor_model->winding_temp_q20 = _IQ20(MAX_MOTOR_TEMP);
+	else if(sp_motor_model->winding_temp_q20 < _IQ20(MIN_MOTOR_TEMP))	sp_motor_model->winding_temp_q20 = _IQ20(MIN_MOTOR_TEMP);
+
+	sp_motor_model->heat_flow_housing_to_ambient_q20 = _IQ20mpyIQX(sp_motor_model->housing_temp_q20 - sp_motor_model->ambient_temp_q20, 20, _IQ30(RECIP_R_th2), 30);
+	housing_temp_dt = _IQ20mpyIQX(sp_motor_model->heat_flow_winding_to_housing_q20 - sp_motor_model->heat_flow_housing_to_ambient_q20, 20, _IQ30(RECIP_C_th2), 30);
+	sp_motor_model->housing_temp_q20 += housing_temp_dt;
+
+	if(sp_motor_model->housing_temp_q20 > _IQ20(MAX_MOTOR_TEMP))		sp_motor_model->housing_temp_q20 = _IQ20(MAX_MOTOR_TEMP);
+	else if(sp_motor_model->housing_temp_q20 < _IQ20(MIN_MOTOR_TEMP))	sp_motor_model->housing_temp_q20 = _IQ20(MIN_MOTOR_TEMP);
+
+	// Update Present Current
+	sp_motor_model->current_q27 = sp_motor_model->steady_state_current_q27;	/* -7.5 ~ 7.5 */
 }
 
 #define DIV_COEF		1000

@@ -19,7 +19,13 @@
 #define RESOLUTION_TEST_ACC	1000
 
 //===========================================================================//
+//
 //	Static Function of Low Level
+//
+//===========================================================================//
+
+//===========================================================================//
+//	Robot status verification functions
 //===========================================================================//
 
 static void _SensorValue(void)
@@ -183,6 +189,10 @@ static void _TestSensor(void)
 	DELAY_US(SW_DELAY);
 }
 
+//===========================================================================//
+// Parameter calibration functions
+//===========================================================================//
+
 #define VEL_NUM	1
 #define VEL_RESOLUTION	50
 static void _Velocity(void)
@@ -249,8 +259,8 @@ static void _Accelaration(void)
 	DELAY_US(SW_DELAY);
 }
 
-#define CAL_MOTOR_PID_PRINT	do{		\
-	TxPrintf("%lu,%lu,%lu,%lf,%lf,%lf", 	\
+#define PRINT_CAL_MOTOR_PID	do{		\
+	TxPrintf("%lu,%lu,%lu,%lf,%lf,%lf\n", 	\
 		g_motor_kp_u32,						\
 		g_motor_ki_u32,						\
 		g_motor_kd_u32,						\
@@ -278,7 +288,7 @@ static void _MotorPID(void)
 			else if(test_vel_i32 < MIN_VELO)	test_vel_i32 = MIN_VELO;
 		
 			VFDPrintf("Vel%5ld", test_vel_i32);
-			CAL_MOTOR_PID_PRINT;
+			PRINT_CAL_MOTOR_PID;
 
 			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_vel_i32 += RESOLUTION_TEST_VEL; }
 			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_vel_i32 -= RESOLUTION_TEST_VEL; }
@@ -294,7 +304,7 @@ static void _MotorPID(void)
 			else if(test_acc_i32 < MIN_ACC)	test_acc_i32 = MIN_ACC;
 		
 			VFDPrintf("Acc%5ld", test_acc_i32);
-			CAL_MOTOR_PID_PRINT;
+			PRINT_CAL_MOTOR_PID;
 
 			if(!SW_R)		{ DELAY_US(SW_DELAY);	test_acc_i32 += RESOLUTION_TEST_ACC; }
 			else if(!SW_L)	{ DELAY_US(SW_DELAY);	test_acc_i32 -= RESOLUTION_TEST_ACC; }
@@ -322,7 +332,7 @@ static void _MotorPID(void)
 
 		// accelerate motor speed
 		while(SW_U)
-			CAL_MOTOR_PID_PRINT;
+			PRINT_CAL_MOTOR_PID;
 
 		g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
 		g_s_left_motor.s_speed.target_vel_q17 = _IQ17(0.0);
@@ -330,7 +340,7 @@ static void _MotorPID(void)
 		// decelerate motor speed
 		while(g_s_left_motor.s_speed.curr_vel_avg_q17 > _IQ17(0.0)
 		|| g_s_left_motor.s_speed.curr_vel_avg_q17 > _IQ17(0.0))
-			CAL_MOTOR_PID_PRINT;
+			PRINT_CAL_MOTOR_PID;
 
 		DEACTIVATE_MOTOR;
 
@@ -380,7 +390,46 @@ static void _CalibrateMotorParam(void)
 	DELAY_US(SW_DELAY);
 }
 
-static void _TestMotor(void)
+static void _CalibrateRunningParam(void)
+{
+	VFDPrintf("made yet");
+	DELAY_US(SW_DELAY);
+}
+
+//===========================================================================//
+// Test functions
+//===========================================================================//
+
+#define MOTOR_TEST			255
+#define MOTOR_MODEL_TEST 	1
+
+#define PRINT_MOTOR_TEST_RESULT(tv) do{		\
+	TxPrintf("tv: %5ld, cvl: %8.2lf, cvr: %8.2lf, Rle: %4u, Rre: %4u, le: %4d, re: %4d\n",		\
+		tv,																						\
+		_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),		\
+		_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),		\
+		g_s_left_motor.s_qep.sample_u16,		\
+		g_s_right_motor.s_qep.sample_u16,		\
+		g_s_left_motor.s_qep.sample_i16,		\
+		g_s_right_motor.s_qep.sample_i16);		\
+}while(0)
+
+#define PRINT_MOTOR_MODEL_TEST_RESULT(tv) do{		\
+	TxPrintf("tv: %5ld, nv_l: %8.2lf, nv_r: %8.2lf, cv_l: %8.2lf, cv_r: %8.2lf, pid_L: %8.2lf, pid_r: %8.2lf, dt_l: %8.2lf, dt_r: %8.2lf, ft_l: %8.2lf, ft_r: %8.2lf\n",	\
+		tv,																																									\
+		_IQ17toF(g_s_left_motor.s_speed.next_vel_q17),				\
+		_IQ17toF(g_s_right_motor.s_speed.next_vel_q17),				\
+		_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),			\
+		_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),			\
+		_IQ17toF(g_s_left_motor.pid_output_q17),					\
+		_IQ17toF(g_s_right_motor.pid_output_q17),					\
+		_IQ25toF(g_s_left_dc_motor_model.driving_torque_q25),		\
+		_IQ25toF(g_s_right_dc_motor_model.driving_torque_q25),		\
+		_IQ25toF(g_s_left_dc_motor_model.friction_torque_q25),		\
+		_IQ25toF(g_s_right_dc_motor_model.friction_torque_q25));	\
+}while(0)
+
+static void _TestMotor(int16 func_switch)
 {
 	int32 test_vel_i32 = 0, test_acc_i32 = 0;
 	_iq17 target_test_vel_q17 = _IQ17(0.0);
@@ -420,7 +469,7 @@ static void _TestMotor(void)
 
 		// motor test logic
 		InitMotor();
-	
+
 		VFDPrintf("Testing.");
 		TxPrintf("Testing...\n");
 
@@ -433,21 +482,21 @@ static void _TestMotor(void)
 		
 		g_s_right_motor.s_speed.accel_q15 = target_test_acc_q15;
 		g_s_left_motor.s_speed.accel_q15 = target_test_acc_q15;
-		
-		ACTIVATE_MOTOR;			
+	
+		ACTIVATE_MOTOR;
 
 		// accelerate motor speed
 		while(SW_U)
 		{
-			TxPrintf("tv: %5ld, cvl: %8.2lf, cvr: %8.2lf, Rle: %4u, Rre: %4u, le: %4d, re: %4d\n", 
-				test_vel_i32,
-				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
-				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
-				g_s_left_motor.s_qep.sample_u16,
-				g_s_right_motor.s_qep.sample_u16,
-				g_s_left_motor.s_qep.sample_i16,
-				g_s_right_motor.s_qep.sample_i16
-			);
+			switch(func_switch)
+			{
+			case MOTOR_MODEL_TEST:
+				PRINT_MOTOR_MODEL_TEST_RESULT(test_vel_i32);
+				break;
+			default:
+				PRINT_MOTOR_TEST_RESULT(test_vel_i32);
+				break;
+			}
 		}
 
 		g_s_right_motor.s_speed.target_vel_q17 = _IQ17(0.0);
@@ -456,16 +505,16 @@ static void _TestMotor(void)
 		// decelerate motor speed
 		while(g_s_left_motor.s_speed.curr_vel_avg_q17 > _IQ17(0.0)
 		|| g_s_left_motor.s_speed.curr_vel_avg_q17 > _IQ17(0.0))
-		{			
-			TxPrintf("tv: %5ld, cvl: %8.2lf, cvr: %8.2lf, Rle: %4u, Rre: %4u, le: %4d, re: %4d\n", 
-				test_vel_i32,
-				_IQ17toF(g_s_left_motor.s_speed.curr_vel_avg_q17),
-				_IQ17toF(g_s_right_motor.s_speed.curr_vel_avg_q17),
-				g_s_left_motor.s_qep.sample_u16,
-				g_s_right_motor.s_qep.sample_u16,
-				g_s_left_motor.s_qep.sample_i16,
-				g_s_right_motor.s_qep.sample_i16
-			);
+		{
+			switch(func_switch)
+			{
+			case MOTOR_MODEL_TEST:
+				PRINT_MOTOR_MODEL_TEST_RESULT(test_vel_i32);
+				break;
+			default:
+				PRINT_MOTOR_TEST_RESULT(test_vel_i32);
+				break;
+			}
 		}
 
 		DEACTIVATE_MOTOR;
@@ -479,11 +528,8 @@ static void _TestMotor(void)
 	DELAY_US(SW_DELAY);
 }
 
-static void _CalibrateRunningParam(void)
-{
-	VFDPrintf("made yet");
-	DELAY_US(SW_DELAY);
-}
+static void _TestMotorRun(void)		{	_TestMotor(MOTOR_TEST);	}
+static void _TestMotorModel(void)	{	_TestMotor(MOTOR_MODEL_TEST);	}
 
 #define TEST_TARGET_DIST	_IQ17(1000.0)
 static void _TestMove2Stop(void)
@@ -705,6 +751,10 @@ static void _TestAlgorithm(void)
 	DELAY_US(250000);
 }
 
+//===========================================================================//
+// Run functions
+//===========================================================================//
+
 static void _SearchRun(void)
 {	
 	VFDPrintf("made yet");
@@ -730,7 +780,9 @@ static void _IntegrateRun(void)
 }
 
 //===========================================================================//
+//
 //	Static Function of High Level : Group of Consistant Functions
+//
 //===========================================================================//
 
 #define RUNFUNC_MENU_NUM	3
@@ -801,15 +853,15 @@ static void _CalibrateParamFunc(void)
 	DELAY_US(SW_DELAY);
 }
 
-#define TESTFUNC_MENU_NUM	4
+#define TESTFUNC_MENU_NUM	5
 static void _TestFunc(void)
 {
 	static void (*menu_func_[])() = {
-		_TestSensor, _TestMotor, _TestRunning, _TestAlgorithm
+		_TestSensor, _TestMotorRun, _TestMotorModel, _TestRunning, _TestAlgorithm
 	};
 
 	static const char *kMenuChar_[] = {
-		"T SENSOR", "T  MOTOR", "T    RUN", "T   ALGO"
+		"T SENSOR", "T  MOTOR", "T  MODEL", "T    RUN", "T   ALGO"
 	};
 	
 	int16 menu_cnt_i16 = 0;

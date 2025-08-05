@@ -18,6 +18,8 @@
 extern void InitMotor(void);
 extern interrupt void IsrTimer2ForMotor(void);
 
+extern void CalcDCMotorStep(DCMotorModelVariable *sp_motor_model, _iq17 pid_output);
+
 extern void MoveToStop(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel);
 extern void MoveToMove(_iq17 tar_dist, int32 tar_acc, _iq17 tar_vel, _iq17 dec_vel);
 

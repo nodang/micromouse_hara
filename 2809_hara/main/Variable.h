@@ -317,6 +317,68 @@ __VARIABLE_EXT__ Uint32	g_motor_kp_u32,
 // until here
 
 //==========================================================================//
+//							 DC MOTOR MODELING                              //
+//==========================================================================//
+
+#define STD_TEMP_22	22.0		// Standard Ambient Temperature, 22 Celsisus
+#define SUP_VOLT 	7.4			// Nominal Voltage [V]
+#define R_STD_TEMP	4.31		// Terminal Resistance [Ohm], Ambient Temp: 22 Celsius
+#define L 			0.0000656	// Rotor Inductance [H]
+#define k_M			3.96		// Torque Constanct [N*m/A] -> [mN*m/A]
+#define k_E			0.000396	// Back EMF Constant [V/(rad/s)] == [N*m/A], This is same as k_M.
+#define J			0.000000058	// Rotor Inertia [kg*m^2]
+#define M_R			0.18		// Friction Torque [N*m] -> [mN*m]
+#define alpha_cu	0.00393		// Temperature Coefficient of Resistance [Celsius]
+#define R_th1		13.0		// Winding to Housing Termal Resistance [Ohm]
+#define R_th2		2.6			// Housing to Ambient (Metal) [Ohm]
+#define tau_w		6.4			// Winding Thermal Time Constant [s]
+#define tau_th		20.0		// Housing Thermal time constan [s]
+#define C_th1		0.492307692	// Winding Heat Capacity [J/K], tau_w / R_th1
+#define C_th2		7.692307692	// Housing Heat Capacity [J/K], tau_th / R_th2
+
+#define RECIP_L			15243.90243	// Reciprocal of Rotor Inductance [1/H]
+#define RECIP_R_th1		0.076923076	// Reciprocal of R_th1 [1/Ohm]
+#define RECIP_R_th2		0.384615384	// Reciprocal of R_th2 [1/Ohm]
+#define RECIP_C_th1		2.031250001	// Reciprocal of C_th1 [1/(J/K)]
+#define RECIP_C_th2		0.130000000	// Reciprocal of C_th2 [1/(J/K)]
+
+#define TIME_TICK_DIV_J			8620.689655	// [500us/(kg*m^2)]
+#define TIME_TICK_DIV_J_DIV1000	8.620689655	// [500us/(kg*m^2)] /1000 -> [500us/(g*m^2)]
+
+#define MAX_MOTOR_RAD_P_S	1675.516081	// Motor's Angle Speed [rad/s], Max RPM = 16000
+#define MIN_MOTOR_RAD_P_S	-MAX_MOTOR_RAD_P_S
+
+#define MAX_MOTOR_TEMP	125.0
+#define MIN_MOTOR_TEMP	-30.0
+
+typedef volatile struct {
+	_iq27	winding_resistance_q27,
+			back_emf_volt_q27,
+			control_volt_q27,
+			steady_state_current_q27,
+			current_q27;	/* -3 ~ 3 */
+
+	_iq25	motor_torque_q25,
+			driving_torque_q25,
+			friction_torque_q25,
+			net_torque_q25;
+
+	_iq19	omega_q19;
+
+	_iq20	power_loss_q20,
+			ambient_temp_q20,
+		
+			heat_flow_winding_to_housing_q20,
+			winding_temp_q20,	/* -30 ~ 125 */
+			
+			heat_flow_housing_to_ambient_q20,
+			housing_temp_q20;	/* -30 ~ 125 */
+} DCMotorModelVariable;
+
+__VARIABLE_EXT__ DCMotorModelVariable	g_s_left_dc_motor_model;
+__VARIABLE_EXT__ DCMotorModelVariable	g_s_right_dc_motor_model;
+
+//==========================================================================//
 //                                POSITION                                  //
 //==========================================================================//
 
