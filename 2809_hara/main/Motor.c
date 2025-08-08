@@ -110,8 +110,8 @@ void InitMotor(void)
 interrupt void IsrTimer2ForMotor(void)
 {
 	volatile _iq17 right_output, left_output;
-	volatile _iq17 phi = _IQ17(10.0), eta = _IQ11(50000.0);
-	volatile _iq17 omega_dot, omega_dot_des, torque_des, i_des, u_control;
+	volatile _iq17 phi = _IQ17(2.0), eta = _IQ25(2.5);
+	volatile _iq17 error_vel, omega_dot, torque_sw, torque_eq, torque_des, i_des, u_control;
 
 	g_timer_500u_u32++;
 #if 0
@@ -315,22 +315,26 @@ interrupt void IsrTimer2ForMotor(void)
 	g_s_left_motor.pid_output_q17 += g_s_left_motor.proportional_term_q17 + g_s_left_motor.derivative_term_q17 + g_s_left_motor.integral_term_q17;
 #else
 	// SMC
+	error_vel = _IQ17mpyIQX(_sp_r_speed->next_vel_q17 - _sp_r_speed->curr_vel_avg_q17, 17, _IQ30(0.082987551), 30);
+
 	g_s_right_motor.err_vel_q17[1] = g_s_right_motor.err_vel_q17[0];
-	g_s_right_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_r_speed->next_vel_q17 - _sp_r_speed->curr_vel_avg_q17, 17, _IQ30(0.082987551), 30);
+	g_s_right_motor.err_vel_q17[0] = _IQ17mpyIQX(_sp_r_speed->next_vel_q17, 17, _IQ30(0.082987551), 30);
 
 	omega_dot = _IQ17mpy((g_s_right_motor.err_vel_q17[0] - g_s_right_motor.err_vel_q17[1]), _IQ17(2000.0)) >> 6;
 
-	if(_IQ17abs(g_s_right_motor.err_vel_q17[0]) > phi)
+	if(_IQ17abs(error_vel) > phi)
 	{
-		if(g_s_right_motor.err_vel_q17[0] > _IQ17(0.0))			omega_dot_des = omega_dot + eta;
-		else if(g_s_right_motor.err_vel_q17[0] < _IQ17(0.0))	omega_dot_des = omega_dot - eta;
-		else													omega_dot_des = omega_dot;
+		if(error_vel > _IQ17(0.0))			torque_sw = eta;
+		else if(error_vel < _IQ17(0.0))		torque_sw = -eta;
+		else								torque_sw = _IQ25(0.0);
 	}
-	else	omega_dot_des = omega_dot + _IQ11mpyIQX(eta, 15, _IQ17div(g_s_right_motor.err_vel_q17[0], phi), 17);
+	else	torque_sw = _IQ25mpyIQX(eta, 25, _IQ17div(error_vel, phi), 17);
 
-	if(_sp_r_speed->curr_vel_avg_q17 > _IQ17(0.0))		torque_des = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot_des, 11) + _IQ25(M_R);
-	else if(_sp_r_speed->curr_vel_avg_q17 < _IQ17(0.0))	torque_des = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot_des, 11) - _IQ25(M_R);
-	else	torque_des = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot_des, 11);
+	if(_sp_r_speed->curr_vel_avg_q17 > _IQ17(0.0))		torque_eq = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot, 11) + _IQ25(M_R);
+	else if(_sp_r_speed->curr_vel_avg_q17 < _IQ17(0.0))	torque_eq = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot, 11) - _IQ25(M_R);
+	else	torque_eq = _IQ25mpyIQX(_IQ30(0.000058), 30, omega_dot, 11);
+
+	torque_des = torque_sw + torque_eq;
 
 	g_s_right_motor.err_vel_sum_q17 = torque_des >> 8;
 
